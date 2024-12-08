@@ -57,7 +57,7 @@ const AuthenticatedScreen = ({ navigation }) => {
           <ChatsContent setSelectedTab={setSelectedTab} setOther={setOther} />
         );
       case "Talks":
-        return <ChatScreen other={other} groupMode={groupMode} />;
+        return <ChatScreen other={other} />;
       case "TalksGroup":
         return <GroupChatScreen selectedGroup={selectedGroup} />;
       case "Groups":

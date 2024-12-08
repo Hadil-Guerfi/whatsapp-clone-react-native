@@ -7,6 +7,7 @@ import {
   FlatList,
   StyleSheet,
   ActivityIndicator,
+  ScrollView, // Import ScrollView for wrapping the static content
 } from "react-native";
 import {
   getDatabase,
@@ -123,29 +124,32 @@ const GroupChatScreen = ({ selectedGroup }) => {
         Group Chat: {group ? group.name : "Loading..."}
       </Text>
 
-      <FlatList
-        data={messages}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={({ item }) => (
-          <View
-            style={
-              item.senderId === currentUserId
-                ? styles.myMessage
-                : styles.otherMessage
-            }>
-            <Text style={styles.senderName}>
-              {getSenderName(item.senderId)}
-            </Text>
-            <Text style={styles.messageText}>{item.text}</Text>
-            <Text style={styles.timestamp}>
-              {new Date(item.timestamp).toLocaleString()}
-            </Text>
-          </View>
-        )}
-        inverted
-        style={{ flex: 1 }}
-      />
-
+      {loading ? (
+        <Text>Loading messages...</Text>
+      ) : (
+        <FlatList
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <View
+              style={
+                item.senderId === currentUserId
+                  ? styles.myMessage
+                  : styles.otherMessage
+              }>
+              <Text style={styles.senderName}>
+                {getSenderName(item.senderId)}
+              </Text>
+              <Text style={styles.messageText}>{item.text}</Text>
+              <Text style={styles.timestamp}>
+                {new Date(item.timestamp).toLocaleString()}
+              </Text>
+            </View>
+          )}
+          inverted
+        />
+      )}
+      {/* Message input */}
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}

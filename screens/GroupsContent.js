@@ -83,9 +83,44 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
   };
 
   const openGroupChat = (group) => {
-    setSelectedTab("TalksGroup"); 
+    setSelectedTab("TalksGroup");
     setSelectedGroup(group.id);
   };
+
+  const renderUserItem = ({ item }) => (
+    <TouchableOpacity
+      onPress={() =>
+        setSelectedUsers((prev) =>
+          prev.includes(item.id)
+            ? prev.filter((id) => id !== item.id)
+            : [...prev, item.id]
+        )
+      }
+      style={[
+        styles.userItem,
+        selectedUsers.includes(item.id) && styles.selectedUser,
+      ]}>
+      <Text>{item.fullname}</Text>
+    </TouchableOpacity>
+  );
+
+  const renderGroupItem = ({ item }) => (
+    <View style={styles.groupItem}>
+      <Text style={styles.groupName}>{item.name}</Text>
+      <View style={styles.groupActions}>
+        <TouchableOpacity
+          onPress={() => openGroupChat(item)}
+          style={styles.chatButton}>
+          <Text style={styles.chatButtonText}>Start Chat</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => deleteGroup(item.id)}
+          style={styles.deleteButton}>
+          <Text style={styles.deleteButtonText}>Delete</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -93,23 +128,7 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
       <FlatList
         data={groups}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.groupItem}>
-            <Text style={styles.groupName}>{item.name}</Text>
-            <View style={styles.groupActions}>
-              <TouchableOpacity
-                onPress={() => openGroupChat(item)}
-                style={styles.chatButton}>
-                <Text style={styles.chatButtonText}>Start Chat</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => deleteGroup(item.id)}
-                style={styles.deleteButton}>
-                <Text style={styles.deleteButtonText}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+        renderItem={renderGroupItem}
       />
       <Button
         title="Create Group"
@@ -127,22 +146,7 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
           <FlatList
             data={allUsers}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                onPress={() =>
-                  setSelectedUsers((prev) =>
-                    prev.includes(item.id)
-                      ? prev.filter((id) => id !== item.id)
-                      : [...prev, item.id]
-                  )
-                }
-                style={[
-                  styles.userItem,
-                  selectedUsers.includes(item.id) && styles.selectedUser,
-                ]}>
-                <Text>{item.fullname}</Text>
-              </TouchableOpacity>
-            )}
+            renderItem={renderUserItem}
           />
           <Button title="Create" onPress={createGroup} />
           <Button
