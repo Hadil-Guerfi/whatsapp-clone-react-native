@@ -6,7 +6,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   FlatList,
-  Platform, // This Platform import is already present
+  Image,
+  Alert,
+  Modal,
+  Linking,
 } from "react-native";
 import {
   getDatabase,
@@ -17,16 +20,106 @@ import {
   onChildAdded,
 } from "firebase/database";
 import { auth } from "./../firebaseConfig";
-import * as DocumentPicker from "expo-document-picker";
-import * as Permissions from "expo-permissions";
+import * as ImagePicker from "expo-image-picker";
+import supabase from "./supabaseClient"; // Import the Supabase client
+import * as Location from "expo-location"; // Import Location API
+import { Ionicons, MaterialIcons } from "react-native-vector-icons"; // Import vector icons
+
+const uploadImageToSupabase = async (uri) => {
+  const fileName = uri.split("/").pop();
+  const fileExt = fileName.split(".").pop().toLowerCase();
+  const fileType =
+    fileExt === "jpg" || fileExt === "jpeg"
+      ? "image/jpeg"
+      : fileExt === "png"
+      ? "image/png"
+      : null;
+
+  if (!fileType) {
+    Alert.alert("File Error", "Unsupported file type.");
+    return null;
+  }
+
+  try {
+    const response = await fetch(uri);
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = new Uint8Array(arrayBuffer);
+
+    const { data, error } = await supabase.storage
+      .from("images")
+      .upload(`images/${Date.now()}_${fileName}`, buffer, {
+        contentType: fileType,
+      });
+
+    if (error) {
+      console.error("Upload error:", error);
+      Alert.alert("Upload Error", error.message);
+      return null;
+    }
+
+    const { data: publicData, error: urlError } = supabase.storage
+      .from("images")
+      .getPublicUrl(data.path);
+
+    if (urlError) {
+      console.error("URL Error:", urlError);
+      return null;
+    }
+
+    return publicData.publicUrl;
+  } catch (err) {
+    console.error("Unexpected Error:", err);
+    Alert.alert("Error", err.message);
+    return null;
+  }
+};
 
 const ChatScreen = ({ other }) => {
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState("");
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [loading, setLoading] = useState(true); // Track loading state
-  const [file, setFile] = useState(null); // Track the selected file
+  const [file, setFile] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
   const currentUserId = auth.currentUser?.uid;
+  const [locationLoading, setLocationLoading] = useState(false); // State for showing location-loading indicator
+
+  const sendLocation = async () => {
+    setLocationLoading(true);
+
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Denied",
+          "We need location access to share it."
+        );
+        setLocationLoading(false);
+        return;
+      }
+
+      const { coords } = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = coords;
+
+      const locationUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
+
+      const newMessage = {
+        senderId: currentUserId,
+        text: `📍 Location: ${locationUrl}`,
+        timestamp: Date.now(),
+        file: null,
+      };
+
+      const database = getDatabase();
+      const chatKey = [currentUserId, other].sort().join("_");
+      const messagesRef = ref(database, `chats/${chatKey}/messages`);
+
+      await set(push(messagesRef), newMessage);
+    } catch (error) {
+      console.error("Error sharing location:", error);
+      Alert.alert("Location Error", error.message);
+    } finally {
+      setLocationLoading(false);
+    }
+  };
 
   useEffect(() => {
     const database = getDatabase();
@@ -36,11 +129,6 @@ const ChatScreen = ({ other }) => {
 
     const fetchMessages = async () => {
       try {
-        const userSnapshot = await get(ref(database, `users/${other}`));
-        if (userSnapshot.exists()) {
-          setSelectedUser(userSnapshot.val());
-        }
-
         const messagesSnapshot = await get(messagesRef);
         if (messagesSnapshot.exists()) {
           const initialMessages = Object.entries(messagesSnapshot.val()).map(
@@ -57,115 +145,145 @@ const ChatScreen = ({ other }) => {
           if (!messageKeys.has(messageKey)) {
             messageKeys.add(messageKey);
             const newMessage = { id: messageKey, ...snapshot.val() };
-            setMessages((prev) => [...prev, newMessage]);
+            setMessages((prev) => [newMessage, ...prev]);
           }
         });
       } catch (error) {
         console.error("Error fetching messages:", error);
-      } finally {
-        setLoading(false);
       }
     };
 
     fetchMessages();
   }, [currentUserId, other]);
 
-  const sendMessage = async () => {
-    if (messageText.trim() === "" && !file) return; // Don't send empty messages or without a file
+  const pickImageFromGallery = async () => {
+    setModalVisible(false);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission Denied",
+        "We need permission to access your library."
+      );
+      return;
+    }
 
-    const chatKey = [currentUserId, other].sort().join("_");
-    const database = getDatabase();
-    const newMessageRef = push(ref(database, `chats/${chatKey}/messages`));
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setFile({
+        uri: result.assets[0].uri,
+        name: result.assets[0].fileName,
+        type: "image",
+      });
+    }
+  };
+
+  const takePhoto = async () => {
+    setModalVisible(false);
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission Denied",
+        "We need permission to access the camera."
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setFile({
+        uri: result.assets[0].uri,
+        name: result.assets[0].fileName,
+        type: "image",
+      });
+    }
+  };
+
+  const sendMessage = async () => {
+    if (messageText.trim() === "" && !file) {
+      Alert.alert(
+        "Validation Error",
+        "Please enter a message or select a file."
+      );
+      return;
+    }
+
+    let fileUrl = "";
+
+    if (file && file.type === "image") {
+      fileUrl = await uploadImageToSupabase(file.uri);
+      if (!fileUrl) return;
+    }
+
+    const newMessage = {
+      senderId: currentUserId,
+      text: messageText.trim(),
+      timestamp: Date.now(),
+      file: fileUrl ? { uri: fileUrl, type: "image" } : null,
+    };
 
     try {
-      const messageData = {
-        senderId: currentUserId,
-        text: messageText,
-        timestamp: new Date().toISOString(),
-      };
+      const database = getDatabase();
+      const chatKey = [currentUserId, other].sort().join("_");
+      const messagesRef = ref(database, `chats/${chatKey}/messages`);
 
-      // If a file is selected, you can include the file URL or other details
-      if (file) {
-        messageData.file = {
-          uri: file.uri, // File URI
-          name: file.name, // File name
-          type: file.type, // File type
-        };
-      }
+      await set(push(messagesRef), newMessage);
 
-      await set(newMessageRef, messageData);
       setMessageText("");
-      setFile(null); // Reset file after sending
+      setFile(null);
     } catch (error) {
       console.error("Error sending message:", error);
-    }
-  };
-
-  const requestPermissions = async () => {
-    if (Platform.OS === "android") {
-      const { status } = await Permissions.askAsync(Permissions.MEDIA_LIBRARY);
-      if (status !== "granted") {
-        alert("Permission to access files is required!");
-      }
-    }
-  };
-  const pickFile = async () => {
-    try {
-      console.log("Picking file...");
-
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ["image/*", "application/pdf", "text/plain"], // Allowed file types
-      });
-
-      if (result.type === "success") {
-        setFile(result);
-        console.log("Selected file details:", {
-          name: result.name,
-          type: result.mimeType,
-          uri: result.uri,
-        });
-      } else {
-        console.log("File picking cancelled.");
-      }
-    } catch (error) {
-      console.error("Error picking document:", error);
-      alert("Error picking document: " + error.message); // Optionally show an alert to the user
+      Alert.alert("Send Error", error.message);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>
-        Chat with {selectedUser ? selectedUser.fullname : "Loading..."}
-      </Text>
-
-      {loading ? (
-        <Text>Loading messages...</Text>
-      ) : (
-        <FlatList
-          data={messages}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View
-              style={
-                item.senderId === currentUserId
-                  ? styles.myMessage
-                  : styles.otherMessage
-              }>
-              <Text style={styles.messageText}>{item.text}</Text>
-              {item.file && (
-                <View>
-                  <Text style={styles.messageText}>File: {item.file.name}</Text>
-                </View>
+      <FlatList
+        data={messages}
+        keyExtractor={(item, index) => item.id || `${index}_${item.timestamp}`}
+        inverted
+        renderItem={({ item }) => (
+          <View
+            style={
+              item.senderId === currentUserId
+                ? styles.myMessage
+                : styles.otherMessage
+            }>
+            <Text style={styles.messageText}>
+              {item.text.includes("https://www.google.com/maps") ? (
+                <Text
+                  style={{ color: "blue" }}
+                  onPress={() =>
+                    Linking.openURL(item.text.replace("📍 Location: ", ""))
+                  }>
+                  {item.text}
+                </Text>
+              ) : (
+                item.text
               )}
-              <Text style={styles.timestamp}>
-                {new Date(item.timestamp).toLocaleTimeString()}
-              </Text>
-            </View>
-          )}
-          inverted
-        />
-      )}
+            </Text>
+
+            {item.file && item.file.type === "image" && (
+              <Image
+                source={{ uri: item.file.uri }}
+                style={styles.messageImage}
+              />
+            )}
+            <Text style={styles.timestamp}>
+              {new Date(item.timestamp).toLocaleTimeString()}
+            </Text>
+          </View>
+        )}
+      />
 
       <View style={styles.inputContainer}>
         <TextInput
@@ -174,85 +292,91 @@ const ChatScreen = ({ other }) => {
           value={messageText}
           onChangeText={setMessageText}
         />
-        <TouchableOpacity onPress={pickFile} style={styles.sendButton}>
-          <Text style={styles.sendButtonText}>Pick File</Text>
+        <TouchableOpacity
+          onPress={() => setModalVisible(true)}
+          style={styles.sendButton}>
+          <Text style={styles.sendButtonText}>Image</Text>
         </TouchableOpacity>
+
+        <Modal
+          transparent={true}
+          animationType="slide"
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}>
+          <View style={styles.modalContainer}>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={pickImageFromGallery}>
+              <Text style={styles.modalButtonText}>Choose from Gallery</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalButton} onPress={takePhoto}>
+              <Text style={styles.modalButtonText}>Take a Photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: "#e74c3c" }]}
+              onPress={() => setModalVisible(false)}>
+              <Text style={styles.modalButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </Modal>
+
         <TouchableOpacity onPress={sendMessage} style={styles.sendButton}>
           <Text style={styles.sendButtonText}>Send</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          onPress={sendLocation}
+          style={[styles.sendButton, { backgroundColor: "#2ecc71" }]}
+          disabled={locationLoading}>
+          <Text style={styles.sendButtonText}>
+            {locationLoading ? "Loading..." : "Location"}
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {file && (
-        <View style={styles.fileInfo}>
-          <Text>Selected file: {file.name}</Text>
-        </View>
+      {file && file.type === "image" && (
+        <Image source={{ uri: file.uri }} style={{ width: 100, height: 100 }} />
       )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    fontSize: 18,
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 10,
-  },
+  container: { flex: 1 },
+  inputContainer: { flexDirection: "row", padding: 10 },
   input: {
     flex: 1,
-    height: 45,
     borderColor: "#ccc",
     borderWidth: 1,
     borderRadius: 5,
-    paddingLeft: 10,
-    marginRight: 10,
+    padding: 10,
   },
   sendButton: {
+    marginLeft: 5,
     backgroundColor: "#3498db",
     padding: 10,
     borderRadius: 5,
   },
-  sendButtonText: {
-    color: "#fff",
-    fontSize: 16,
-  },
-  messageText: {
-    fontSize: 16,
-    color: "#fff",
-  },
-  timestamp: {
-    fontSize: 12,
-    color: "#ccc",
-  },
+  sendButtonText: { color: "#fff" },
   myMessage: {
     backgroundColor: "#2ecc71",
     alignSelf: "flex-end",
     padding: 10,
-    marginBottom: 5,
     borderRadius: 5,
-    maxWidth: "70%",
   },
   otherMessage: {
     backgroundColor: "#3498db",
     alignSelf: "flex-start",
     padding: 10,
-    marginBottom: 5,
-    borderRadius: 5,
-    maxWidth: "70%",
-  },
-  fileInfo: {
-    marginTop: 10,
-    padding: 10,
-    backgroundColor: "#f0f0f0",
     borderRadius: 5,
   },
+  messageText: { color: "#fff" },
+  messageImage: {
+    width: 200,
+    height: 200,
+    marginVertical: 10,
+    borderRadius: 10,
+  },
+  timestamp: { fontSize: 10, color: "#ccc", marginTop: 5 },
 });
 
 export default ChatScreen;
