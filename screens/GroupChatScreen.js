@@ -260,6 +260,9 @@ const GroupChatScreen = ({ selectedGroup }) => {
   };
 
   const getSenderName = (senderId) => {
+    if (senderId === currentUserId) {
+      return "Me"; // Return "Me" if the sender is the current user
+    }
     const sender = members.find((member) => member.id === senderId);
     return sender ? sender.name : "Unknown";
   };

@@ -16,6 +16,7 @@ import { auth } from "./../firebaseConfig";
 const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
   const [groups, setGroups] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
+  const [allUsersWithCurrent, setAllUsersWithCurrent] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [selectedUsers, setSelectedUsers] = useState([]);
@@ -33,6 +34,12 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
           .filter((id) => id !== currentUserId)
           .map((id) => ({ id, ...users[id] }));
         setAllUsers(filteredUsers);
+
+        const filteredUsersWithCurrent = Object.keys(users).map((id) => ({
+          id,
+          ...users[id],
+        }));
+        setAllUsersWithCurrent(filteredUsersWithCurrent);
 
         // Fetch groups
         const groupsSnapshot = await get(ref(database, "groups"));
@@ -52,7 +59,6 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
 
     fetchData();
   }, [currentUserId]);
-
   const createGroup = async () => {
     if (!groupName.trim() || selectedUsers.length === 0) {
       Alert.alert("Error", "Provide a group name and select members.");
@@ -65,16 +71,23 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
 
     try {
       const groupMembers = [currentUserId, ...selectedUsers];
-      // Save the group with the associated chatId
+      // Save the group with the associated chatId and groupCreator
       await set(ref(database, `groups/${groupId}`), {
         name: groupName.trim(),
         members: groupMembers,
         chatId, // Link the chat ID to the group
+        groupCreator: currentUserId, // Store the ID of the group creator
       });
 
       setGroups((prev) => [
         ...prev,
-        { id: groupId, name: groupName.trim(), members: groupMembers, chatId },
+        {
+          id: groupId,
+          name: groupName.trim(),
+          members: groupMembers,
+          chatId,
+          groupCreator: currentUserId,
+        },
       ]);
       setModalVisible(false);
       setGroupName("");
@@ -89,8 +102,15 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
     setSelectedTab("TalksGroup");
     setSelectedGroup(group.id);
   };
-
   const editGroup = (group) => {
+    if (group.groupCreator !== currentUserId) {
+      Alert.alert(
+        "Permission Denied",
+        "You are not the creator of this group."
+      );
+      return;
+    }
+
     setCurrentGroup(group); // Set the group to be edited
     setGroupName(group.name);
     setSelectedUsers(group.members.filter((id) => id !== currentUserId)); // Exclude the current user
@@ -143,29 +163,40 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
       <Text>{item.fullname}</Text>
     </TouchableOpacity>
   );
+  const renderGroupItem = ({ item }) => {
+    // Find the full name of the group creator
+    const groupCreator = allUsersWithCurrent.find(
+      (user) => user.id === item.groupCreator
+    );
+    const creatorName = groupCreator ? groupCreator.fullname : "Unknown";
 
-  const renderGroupItem = ({ item }) => (
-    <View style={styles.groupItem}>
-      <Text style={styles.groupName}>{item.name}</Text>
-      <View style={styles.groupActions}>
-        <TouchableOpacity
-          onPress={() => openGroupChat(item)}
-          style={styles.chatButton}>
-          <Text style={styles.chatButtonText}>Start Chat</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => deleteGroup(item.id)}
-          style={styles.deleteButton}>
-          <Text style={styles.deleteButtonText}>Delete</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => editGroup(item)}
-          style={styles.editButton}>
-          <Text style={styles.editButtonText}>Edit</Text>
-        </TouchableOpacity>
+    return (
+      <View style={styles.groupItem}>
+        <Text style={styles.groupName}>{item.name}</Text>
+        <Text style={styles.groupCreator}>Created by: {creatorName}</Text>
+
+        <View style={styles.groupActions}>
+          <TouchableOpacity
+            onPress={() => openGroupChat(item)}
+            style={styles.chatButton}>
+            <Text style={styles.chatButtonText}>Start Chat</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => deleteGroup(item.id)}
+            style={styles.deleteButton}>
+            <Text style={styles.deleteButtonText}>Delete</Text>
+          </TouchableOpacity>
+          {item.groupCreator === currentUserId && ( // Check if the current user is the creator
+            <TouchableOpacity
+              onPress={() => editGroup(item)}
+              style={styles.editButton}>
+              <Text style={styles.editButtonText}>Edit</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
