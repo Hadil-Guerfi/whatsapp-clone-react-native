@@ -10,7 +10,7 @@ import {
   Alert,
   StyleSheet,
 } from "react-native";
-import { ref, get, set, push, remove, getDatabase } from "firebase/database";
+import { ref, get, set, push, update, getDatabase } from "firebase/database";
 import { auth } from "./../firebaseConfig";
 
 const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
@@ -19,8 +19,8 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [selectedUsers, setSelectedUsers] = useState([]);
+  const [currentGroup, setCurrentGroup] = useState(null); // Track the current group being edited
   const currentUserId = auth.currentUser?.uid;
-
   useEffect(() => {
     const fetchData = async () => {
       const database = getDatabase();
@@ -37,10 +37,13 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
         // Fetch groups
         const groupsSnapshot = await get(ref(database, "groups"));
         const groupsData = groupsSnapshot.exists() ? groupsSnapshot.val() : {};
-        const groupsArray = Object.keys(groupsData).map((id) => ({
-          id,
-          ...groupsData[id],
-        }));
+        const groupsArray = Object.keys(groupsData)
+          .map((id) => ({
+            id,
+            ...groupsData[id],
+          }))
+          .filter((group) => group.members.includes(currentUserId)); // Only include groups where the current user is a member
+
         setGroups(groupsArray);
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -87,6 +90,43 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
     setSelectedGroup(group.id);
   };
 
+  const editGroup = (group) => {
+    setCurrentGroup(group); // Set the group to be edited
+    setGroupName(group.name);
+    setSelectedUsers(group.members.filter((id) => id !== currentUserId)); // Exclude the current user
+    setModalVisible(true); // Open the modal to add more users
+  };
+
+  const addMembersToGroup = async () => {
+    if (selectedUsers.length === 0) {
+      Alert.alert("Error", "Select at least one member to add.");
+      return;
+    }
+
+    const database = getDatabase();
+    try {
+      // Update the group with the new members
+      const updatedMembers = [...currentGroup.members, ...selectedUsers];
+      await update(ref(database, `groups/${currentGroup.id}`), {
+        members: updatedMembers,
+      });
+
+      setGroups((prev) =>
+        prev.map((group) =>
+          group.id === currentGroup.id
+            ? { ...group, members: updatedMembers }
+            : group
+        )
+      );
+      setModalVisible(false);
+      setGroupName("");
+      setSelectedUsers([]);
+      Alert.alert("Success", "Members added successfully!");
+    } catch (error) {
+      console.error("Error adding members:", error);
+    }
+  };
+
   const renderUserItem = ({ item }) => (
     <TouchableOpacity
       onPress={() =>
@@ -118,6 +158,11 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
           style={styles.deleteButton}>
           <Text style={styles.deleteButtonText}>Delete</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => editGroup(item)}
+          style={styles.editButton}>
+          <Text style={styles.editButtonText}>Edit</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -148,7 +193,11 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
             keyExtractor={(item) => item.id}
             renderItem={renderUserItem}
           />
-          <Button title="Create" onPress={createGroup} />
+          {currentGroup ? (
+            <Button title="Add Members" onPress={addMembersToGroup} />
+          ) : (
+            <Button title="Create" onPress={createGroup} />
+          )}
           <Button
             title="Close"
             onPress={() => setModalVisible(false)}
@@ -175,6 +224,8 @@ const styles = StyleSheet.create({
   chatButtonText: { color: "#fff" },
   deleteButton: { backgroundColor: "#e74c3c", padding: 10, borderRadius: 5 },
   deleteButtonText: { color: "#fff" },
+  editButton: { backgroundColor: "#f39c12", padding: 10, borderRadius: 5 },
+  editButtonText: { color: "#fff" },
   modalContainer: {
     flex: 1,
     justifyContent: "center",
