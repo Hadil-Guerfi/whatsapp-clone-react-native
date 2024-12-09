@@ -351,8 +351,8 @@ const ChatScreen = ({ other }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  inputContainer: { flexDirection: "row", padding: 10 },
+  container: { flex: 1, marginTop: 10 },
+  inputContainer: { flexDirection: "row" },
   input: {
     flex: 1,
     borderColor: "#ccc",
