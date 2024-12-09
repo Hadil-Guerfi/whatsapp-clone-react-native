@@ -7,6 +7,7 @@ import {
   StyleSheet,
   FlatList,
   Image,
+  Linking,
   Alert,
   Modal,
 } from "react-native";

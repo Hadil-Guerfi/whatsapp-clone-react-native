@@ -10,6 +10,7 @@ import {
   Image,
   Modal,
   Alert,
+  Linking,
 } from "react-native";
 import {
   getDatabase,
