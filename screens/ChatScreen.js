@@ -9,7 +9,6 @@ import {
   Image,
   Alert,
   Modal,
-  Linking,
 } from "react-native";
 import {
   getDatabase,
@@ -83,7 +82,7 @@ const ChatScreen = ({ other }) => {
   const [locationLoading, setLocationLoading] = useState(false); // State for showing location-loading indicator
 
   const sendLocation = async () => {
-    setLocationLoading(true);
+    setLocationLoading(true); // Show loading indicator while fetching location
 
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -117,10 +116,9 @@ const ChatScreen = ({ other }) => {
       console.error("Error sharing location:", error);
       Alert.alert("Location Error", error.message);
     } finally {
-      setLocationLoading(false);
+      setLocationLoading(false); // Hide loading indicator
     }
   };
-
   useEffect(() => {
     const database = getDatabase();
     const chatKey = [currentUserId, other].sort().join("_");
@@ -137,7 +135,12 @@ const ChatScreen = ({ other }) => {
               return { id: key, ...message };
             }
           );
-          setMessages(initialMessages);
+
+          // Sort messages by timestamp in descending order
+          const sortedMessages = initialMessages.sort(
+            (a, b) => b.timestamp - a.timestamp
+          );
+          setMessages(sortedMessages);
         }
 
         onChildAdded(messagesRef, (snapshot) => {
@@ -145,7 +148,11 @@ const ChatScreen = ({ other }) => {
           if (!messageKeys.has(messageKey)) {
             messageKeys.add(messageKey);
             const newMessage = { id: messageKey, ...snapshot.val() };
-            setMessages((prev) => [newMessage, ...prev]);
+
+            // Add the new message and sort again
+            setMessages((prev) =>
+              [newMessage, ...prev].sort((a, b) => b.timestamp - a.timestamp)
+            );
           }
         });
       } catch (error) {
@@ -186,10 +193,7 @@ const ChatScreen = ({ other }) => {
     setModalVisible(false);
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(
-        "Permission Denied",
-        "We need permission to access the camera."
-      );
+      Alert.alert("Permission Denied", "We need permission to access camera.");
       return;
     }
 
@@ -247,9 +251,10 @@ const ChatScreen = ({ other }) => {
 
   return (
     <View style={styles.container}>
+      {/* Existing FlatList for messages */}
       <FlatList
         data={messages}
-        keyExtractor={(item, index) => item.id || `${index}_${item.timestamp}`}
+        keyExtractor={(item, index) => `${item.senderId}_${item.timestamp}`} // Use senderId and timestamp for a unique key
         inverted
         renderItem={({ item }) => (
           <View
@@ -292,10 +297,11 @@ const ChatScreen = ({ other }) => {
           value={messageText}
           onChangeText={setMessageText}
         />
+
         <TouchableOpacity
           onPress={() => setModalVisible(true)}
           style={styles.sendButton}>
-          <Text style={styles.sendButtonText}>Image</Text>
+          <Ionicons name="image-outline" size={20} color="#fff" />
         </TouchableOpacity>
 
         <Modal
@@ -321,18 +327,22 @@ const ChatScreen = ({ other }) => {
         </Modal>
 
         <TouchableOpacity onPress={sendMessage} style={styles.sendButton}>
-          <Text style={styles.sendButtonText}>Send</Text>
+          <MaterialIcons name="send" size={20} color="#fff" />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={sendLocation}
           style={[styles.sendButton, { backgroundColor: "#2ecc71" }]}
           disabled={locationLoading}>
-          <Text style={styles.sendButtonText}>
-            {locationLoading ? "Loading..." : "Location"}
-          </Text>
+          <Ionicons
+            name="location-outline"
+            size={20}
+            color="#fff"
+            // style={{ marginHorizontal: 5 }}
+          />
         </TouchableOpacity>
       </View>
 
+      {/* Existing file preview */}
       {file && file.type === "image" && (
         <Image source={{ uri: file.uri }} style={{ width: 100, height: 100 }} />
       )}
@@ -353,7 +363,8 @@ const styles = StyleSheet.create({
   sendButton: {
     marginLeft: 5,
     backgroundColor: "#3498db",
-    padding: 10,
+    padding: 5,
+    paddingTop: 10,
     borderRadius: 5,
   },
   sendButtonText: { color: "#fff" },
@@ -361,12 +372,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#2ecc71",
     alignSelf: "flex-end",
     padding: 10,
+    marginBottom: 10,
     borderRadius: 5,
   },
   otherMessage: {
     backgroundColor: "#3498db",
     alignSelf: "flex-start",
     padding: 10,
+    marginBottom: 10,
     borderRadius: 5,
   },
   messageText: { color: "#fff" },
@@ -377,6 +390,21 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   timestamp: { fontSize: 10, color: "#ccc", marginTop: 5 },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  modalButton: {
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 10,
+    marginVertical: 5,
+    width: "80%",
+    alignItems: "center",
+  },
+  modalButtonText: { color: "#000", fontSize: 16 },
 });
 
 export default ChatScreen;
