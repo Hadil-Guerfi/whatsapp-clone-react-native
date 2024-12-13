@@ -185,7 +185,7 @@ const ChatsContent = ({ setSelectedTab, setOther }) => {
               <Text style={styles.chatButtonText}>Chat</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => handleDeleteChat(item.id)}
+              onPress={() => handleDeleteChat(chat.id)}
               style={styles.deleteButton}>
               <Text style={styles.deleteButtonText}>Delete</Text>
             </TouchableOpacity>
