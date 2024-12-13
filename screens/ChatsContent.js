@@ -14,12 +14,14 @@ import {
 } from "react-native";
 import { ref, get, getDatabase, set, remove } from "firebase/database";
 import { auth } from "./../firebaseConfig";
+import { Ionicons } from "react-native-vector-icons"; // Importing icon set
 
 const ChatsContent = ({ setSelectedTab, setOther }) => {
   const [chats, setChats] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [modalSearchTerm, setModalSearchTerm] = useState("");
   const [allUsers, setAllUsers] = useState([]);
+  const [lastMessages, setLastMessages] = useState({});
   const [modalVisible, setModalVisible] = useState(false);
   const currentUserEmail = auth.currentUser?.email;
   const currentUserId = auth.currentUser?.uid;
@@ -62,6 +64,29 @@ const ChatsContent = ({ setSelectedTab, setOther }) => {
         setChats(usersWithChats);
 
         setAllUsers(usersWithoutChats);
+
+        // Fetch the last message for each chat
+        const lastMessagesMap = {};
+        for (const chat of usersWithChats) {
+          const chatKey = [currentUserId, chat.id].sort().join("_");
+          const chatMessagesRef = ref(database, `chats/${chatKey}/messages`);
+          const chatMessagesSnapshot = await get(chatMessagesRef);
+          if (chatMessagesSnapshot.exists()) {
+            const messages = chatMessagesSnapshot.val();
+            const lastMessageKey = Object.keys(messages).pop();
+            const lastMessage = messages[lastMessageKey];
+            lastMessagesMap[chat.id] = {
+              text: lastMessage.text || "Say Hello 👋",
+              timestamp: lastMessage.timestamp || new Date().toISOString(),
+            };
+          } else {
+            lastMessagesMap[chat.id] = {
+              text: "Say Hello 👋",
+              timestamp: null,
+            };
+          }
+        }
+        setLastMessages(lastMessagesMap);
       } catch (error) {
         console.error("Error fetching users or chats:", error);
       }
@@ -83,15 +108,23 @@ const ChatsContent = ({ setSelectedTab, setOther }) => {
         return;
       }
 
+      // Create a new chat
       await set(chatRef, {
         users: [currentUserId, userId],
-        messages: [],
+        messages: {},
         createdAt: new Date().toISOString(),
       });
 
       const userToAdd = allUsers.find((user) => user.id === userId);
+
+      // Update chats and lastMessages state
       setChats((prevChats) => [...prevChats, userToAdd]);
       setAllUsers((prev) => prev.filter((user) => user.id !== userId));
+      setLastMessages((prevMessages) => ({
+        ...prevMessages,
+        [userId]: "Say Hello 👋", // Set a default message for the new chat
+      }));
+
       setModalVisible(false);
       Alert.alert("Success", "Chat added successfully!");
     } catch (error) {
@@ -129,30 +162,43 @@ const ChatsContent = ({ setSelectedTab, setOther }) => {
               value={searchTerm}
               onChangeText={setSearchTerm}
             />
+            <TouchableOpacity
+              style={styles.addChatButton}
+              onPress={() => setModalVisible(true)}>
+              <View style={styles.addChatIconContainer}>
+                <Text style={styles.addChatIcon}>+</Text>
+              </View>
+            </TouchableOpacity>
           </View>
 
           <FlatList
             data={filteredChats}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <View style={styles.chatItemContainer}>
+              <TouchableOpacity
+                style={styles.chatItemContainer}
+                onPress={() => handleOpenChat(item.id)} // Start chat on click
+              >
                 <Image source={{ uri: item.picture }} style={styles.avatar} />
-                <Text style={styles.chatItem}>{item.pseudo}</Text>
-
-                <TouchableOpacity
-                  onPress={() => handleOpenChat(item.id)}
-                  style={styles.chatButton}>
-                  <Text style={styles.chatButtonText}>Chat</Text>
-                </TouchableOpacity>
-              </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.chatItem}>{item.pseudo}</Text>
+                  <Text style={styles.lastMessage}>
+                    {lastMessages[item.id]?.text}
+                  </Text>
+                </View>
+                <Text style={styles.lastMessageTime}>
+                  {lastMessages[item.id]?.timestamp
+                    ? new Date(
+                        lastMessages[item.id].timestamp
+                      ).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : ""}
+                </Text>
+              </TouchableOpacity>
             )}
           />
-
-          <TouchableOpacity
-            style={styles.addChatButton}
-            onPress={() => setModalVisible(true)}>
-            <Text style={styles.addChatButtonText}>Add Chat</Text>
-          </TouchableOpacity>
 
           <Modal
             animationType="slide"
@@ -161,9 +207,17 @@ const ChatsContent = ({ setSelectedTab, setOther }) => {
             onRequestClose={() => setModalVisible(false)}>
             <View style={styles.modalContainer}>
               <View style={styles.modalContent}>
-                <Text style={styles.modalHeader}>Add New Chat</Text>
+                <View style={styles.headerContainer}>
+                  <Text style={styles.modalHeader}>Add New Chat</Text>
+                  <TouchableOpacity
+                    style={styles.closeModalButton}
+                    onPress={() => setModalVisible(false)}>
+                    <Ionicons name="close" size={30} color="#e74c3c" />
+                  </TouchableOpacity>
+                </View>
+
                 <TextInput
-                  style={styles.searchInput}
+                  style={styles.searchInputUser}
                   placeholder="Search Users"
                   value={modalSearchTerm}
                   onChangeText={setModalSearchTerm}
@@ -186,12 +240,6 @@ const ChatsContent = ({ setSelectedTab, setOther }) => {
                     </TouchableOpacity>
                   )}
                 />
-
-                <TouchableOpacity
-                  style={styles.closeModalButton}
-                  onPress={() => setModalVisible(false)}>
-                  <Text style={styles.closeModalButtonText}>Close</Text>
-                </TouchableOpacity>
               </View>
             </View>
           </Modal>
@@ -223,17 +271,31 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     width: "100%",
-    marginBottom: 20,
+    marginBottom: 10,
+    display: "flex",
+    flexDirection: "row",
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginVertical: 20,
+  },
+  addChatButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
   },
   searchInput: {
     height: 50,
+    flex: 1,
     borderColor: "#ccc",
     borderWidth: 1,
     borderRadius: 25,
     paddingHorizontal: 15,
     fontSize: 16,
     backgroundColor: "#fff",
+    marginRight: 5,
   },
+
   chatItemContainer: {
     display: "flex",
     flexDirection: "row",
@@ -241,11 +303,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     padding: 10,
+    paddingBottom: 15,
     borderRadius: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
+  },
+  searchInputUser: {
+    height: 50,
+    borderColor: "#ccc",
+    borderWidth: 1,
+    borderRadius: 25,
+    paddingHorizontal: 15,
+    fontSize: 16,
+    backgroundColor: "#fff",
   },
   avatar: {
     width: 50,
@@ -255,12 +327,10 @@ const styles = StyleSheet.create({
   },
   chatItem: {
     fontSize: 16,
+    fontWeight: "bold",
     flex: 1,
   },
-  buttonContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
+
   chatButton: {
     backgroundColor: "#25D366",
     padding: 10,
@@ -295,7 +365,7 @@ const styles = StyleSheet.create({
   modalHeader: {
     fontSize: 18,
     fontWeight: "bold",
-    marginBottom: 20,
+    textAlign: "center",
   },
   modalUserContainer: {
     flexDirection: "row",
@@ -307,15 +377,55 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   closeModalButton: {
-    backgroundColor: "#e74c3c",
-    padding: 10,
-    borderRadius: 5,
-    alignItems: "center",
-    marginTop: 20,
+    color: "#e74c3c",
   },
   closeModalButtonText: {
     color: "#fff",
     fontSize: 16,
+  },
+  addChatButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#25D366",
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 25,
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+  },
+  addChatIconContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 50,
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addChatIcon: {
+    color: "#25D366",
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+
+  headerContainer: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 30,
+  },
+  modalUserContainer: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+  lastMessageTime: {
+    color: "#666",
+    fontSize: 14,
+    alignSelf: "flex-start",
   },
 });
 
