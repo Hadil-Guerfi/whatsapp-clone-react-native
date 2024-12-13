@@ -7,6 +7,8 @@ import {
   Image,
   Button,
   StyleSheet,
+  ScrollView,
+  ImageBackground,
   Alert,
   ActivityIndicator,
 } from "react-native";
@@ -14,6 +16,7 @@ import * as ImagePicker from "expo-image-picker";
 import { auth, database } from "./../firebaseConfig";
 import { ref, set, get } from "firebase/database";
 import supabase from "./supabaseClient";
+import Icon from "react-native-vector-icons/MaterialIcons";
 
 const uploadImageToSupabase = async (uri) => {
   const fileName = uri.split("/").pop();
@@ -151,100 +154,146 @@ const ProfileScreen = () => {
   useEffect(() => {
     fetchProfileData();
   }, []);
-
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Edit Profile</Text>
+    <ScrollView contentContainerStyle={styles.container}>
+      <ImageBackground
+        style={styles.background}
+        source={require("../assets/background.jpg")}
+        resizeMode="cover">
+        <View style={styles.content}>
+          <Text style={styles.title}>My Profile</Text>
 
-      {loading ? (
-        <ActivityIndicator size="large" color="#3498db" />
-      ) : (
-        <Image
-          source={
-            profileImage ? { uri: profileImage } : require("../assets/logo.png")
-          }
-          style={styles.profileImage}
-        />
-      )}
+          {loading ? (
+            <ActivityIndicator size="large" color="#00c6ff" />
+          ) : (
+            <TouchableOpacity onPress={pickImageFromGallery}>
+              <Image
+                source={
+                  profileImage
+                    ? { uri: profileImage }
+                    : require("../assets/logo.png")
+                }
+                style={styles.profileImage}
+              />
+              <View style={styles.iconContainer}>
+                <Icon name="edit" size={24} color="#25D366" />
+              </View>
+            </TouchableOpacity>
+          )}
 
-      <TouchableOpacity style={styles.button} onPress={pickImageFromGallery}>
-        <Text style={styles.buttonText}>Choose from Gallery</Text>
-      </TouchableOpacity>
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Email"
+              editable={false}
+            />
+            <TextInput
+              style={styles.input}
+              value={fullname}
+              onChangeText={setFullname}
+              placeholder="Full Name"
+            />
+            <TextInput
+              style={styles.input}
+              value={pseudo}
+              onChangeText={setPseudo}
+              placeholder="Pseudo"
+            />
+            <TextInput
+              style={styles.input}
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="Phone"
+              keyboardType="phone-pad"
+            />
+          </View>
 
-      <TextInput
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-        placeholder="Email"
-        editable={false} // Email is not editable
-      />
-
-      <TextInput
-        style={styles.input}
-        value={fullname}
-        onChangeText={setFullname}
-        placeholder="Full Name"
-      />
-
-      <TextInput
-        style={styles.input}
-        value={pseudo}
-        onChangeText={setPseudo}
-        placeholder="Pseudo"
-      />
-
-      <TextInput
-        style={styles.input}
-        value={phone}
-        onChangeText={setPhone}
-        placeholder="Phone"
-        keyboardType="phone-pad"
-      />
-
-      <Button title="Save" onPress={handleSave} color="#3498db" />
-    </View>
+          <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
+            <Text style={styles.saveButtonText}>Save Changes</Text>
+          </TouchableOpacity>
+        </View>
+      </ImageBackground>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    padding: 20,
-    justifyContent: "center",
+    flexGrow: 1,
     alignItems: "center",
   },
+  background: {
+    width: "100%",
+    height: "100%",
+  },
+  content: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "bold",
-    marginBottom: 20,
+    color: "#25D366",
+    marginVertical: 20,
+    textShadowColor: "#000",
   },
   profileImage: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+    borderColor: "#ffffff",
+    marginBottom: 10,
+  },
+  changePhotoText: {
+    fontSize: 14,
+    color: "#00c6ff",
+    textAlign: "center",
+    textDecorationLine: "underline",
     marginBottom: 20,
-    borderWidth: 2,
-    borderColor: "#ddd",
   },
-  button: {
-    backgroundColor: "#3498db",
-    padding: 10,
-    borderRadius: 10,
+  inputContainer: {
+    width: "100%",
     marginVertical: 10,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
   },
   input: {
     height: 50,
-    borderColor: "#ccc",
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginBottom: 15,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderRadius: 25,
+    paddingHorizontal: 15,
     fontSize: 16,
-    width: "100%",
+    color: "#333",
+    marginVertical: 10,
+  },
+  saveButton: {
+    backgroundColor: "#25D366",
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    borderRadius: 25,
+    marginTop: 20,
+    shadowColor: "#00c6ff",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.6,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  saveButtonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  iconContainer: {
+    position: "absolute",
+    bottom: 10,
+    right: 10,
+    backgroundColor: "#fff",
+    borderRadius: 15,
+    padding: 5,
+    elevation: 3,
   },
 });
 
