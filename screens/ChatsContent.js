@@ -171,34 +171,30 @@ const ChatsContent = ({ setSelectedTab, setOther }) => {
             </TouchableOpacity>
           </View>
 
-          <FlatList
-            data={filteredChats}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.chatItemContainer}
-                onPress={() => handleOpenChat(item.id)} // Start chat on click
-              >
-                <Image source={{ uri: item.picture }} style={styles.avatar} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.chatItem}>{item.pseudo}</Text>
-                  <Text style={styles.lastMessage}>
-                    {lastMessages[item.id]?.text}
-                  </Text>
-                </View>
-                <Text style={styles.lastMessageTime}>
-                  {lastMessages[item.id]?.timestamp
-                    ? new Date(
-                        lastMessages[item.id].timestamp
-                      ).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : ""}
+          {filteredChats.map((item) => (
+            <TouchableOpacity
+              key={item.id}
+              style={styles.chatItemContainer}
+              onPress={() => handleOpenChat(item.id)}>
+              <Image source={{ uri: item.picture }} style={styles.avatar} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.chatItem}>{item.pseudo}</Text>
+                <Text style={styles.lastMessage}>
+                  {lastMessages[item.id]?.text || "Say Hello 👋"}
                 </Text>
-              </TouchableOpacity>
-            )}
-          />
+              </View>
+              <Text style={styles.lastMessageTime}>
+                {lastMessages[item.id]?.timestamp
+                  ? new Date(
+                      lastMessages[item.id].timestamp
+                    ).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : ""}
+              </Text>
+            </TouchableOpacity>
+          ))}
 
           <Modal
             animationType="slide"
