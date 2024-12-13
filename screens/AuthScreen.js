@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Image,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import CheckBox from "expo-checkbox";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -127,83 +128,96 @@ const AuthScreen = ({
   setProfileImage,
   rememberMe,
   setRememberMe,
+  isLoading,
 }) => {
   return (
     <View style={styles.container}>
       <ImageBackground
         style={styles.background}
         source={require("../assets/background.jpg")}>
-        <Image source={require("../assets/logo.png")} style={styles.logo} />
-
-        <Text style={styles.title}>{isLogin ? "Sign In" : "Sign Up"}</Text>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="Email"
-          autoCapitalize="none"
-        />
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Password"
-          secureTextEntry
-        />
-        {!isLogin && (
+        {isLoading ? (
+          <ActivityIndicator
+            size="large"
+            color="#27b141"
+            style={styles.spinner}
+          />
+        ) : (
           <>
+            <Image source={require("../assets/logo.png")} style={styles.logo} />
+
+            <Text style={styles.title}>{isLogin ? "Sign In" : "Sign Up"}</Text>
             <TextInput
               style={styles.input}
-              value={fullname}
-              onChangeText={setFullname}
-              placeholder="Full Name"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Email"
+              autoCapitalize="none"
             />
             <TextInput
               style={styles.input}
-              value={pseudo}
-              onChangeText={setPseudo}
-              placeholder="Pseudo"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Password"
+              secureTextEntry
             />
-            <TextInput
-              style={styles.input}
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="Phone Number"
-              keyboardType="phone-pad"
-            />
-            <ImagePickerComponent setProfileImage={setProfileImage} />
-            {profileImage && (
-              <Image
-                source={{ uri: profileImage }}
-                style={styles.profileImage}
-              />
+            {!isLogin && (
+              <>
+                <TextInput
+                  style={styles.input}
+                  value={fullname}
+                  onChangeText={setFullname}
+                  placeholder="Full Name"
+                />
+                <TextInput
+                  style={styles.input}
+                  value={pseudo}
+                  onChangeText={setPseudo}
+                  placeholder="Pseudo"
+                />
+                <TextInput
+                  style={styles.input}
+                  value={phone}
+                  onChangeText={setPhone}
+                  placeholder="Phone Number"
+                  keyboardType="phone-pad"
+                />
+                <ImagePickerComponent setProfileImage={setProfileImage} />
+                {profileImage && (
+                  <Image
+                    source={{ uri: profileImage }}
+                    style={styles.profileImage}
+                  />
+                )}
+              </>
             )}
+            {isLogin && (
+              <View style={styles.rememberMeContainer}>
+                <CheckBox
+                  value={rememberMe}
+                  onValueChange={setRememberMe}
+                  style={styles.checkbox}
+                />
+                <Text style={styles.rememberMeText}>Remember Me</Text>
+              </View>
+            )}
+            <View style={styles.buttonContainer}>
+              <Button
+                title={isLogin ? "Sign In" : "Sign Up"}
+                onPress={handleAuthentication}
+                color="#27b141"
+              />
+            </View>
+            <View style={styles.bottomContainer}>
+              <Text
+                style={styles.toggleText}
+                onPress={() => setIsLogin(!isLogin)}>
+                {isLogin
+                  ? "Need an account? Sign Up"
+                  : "Already have an account? Sign In"}
+              </Text>
+            </View>
           </>
         )}
-        {isLogin && (
-          <View style={styles.rememberMeContainer}>
-            <CheckBox
-              value={rememberMe}
-              onValueChange={setRememberMe}
-              style={styles.checkbox}
-            />
-            <Text style={styles.rememberMeText}>Remember Me</Text>
-          </View>
-        )}
-        <View style={styles.buttonContainer}>
-          <Button
-            title={isLogin ? "Sign In" : "Sign Up"}
-            onPress={handleAuthentication}
-            color="#27b141"
-          />
-        </View>
-        <View style={styles.bottomContainer}>
-          <Text style={styles.toggleText} onPress={() => setIsLogin(!isLogin)}>
-            {isLogin
-              ? "Need an account? Sign Up"
-              : "Already have an account? Sign In"}
-          </Text>
-        </View>
       </ImageBackground>
     </View>
   );
@@ -218,6 +232,7 @@ export default function AuthScreenComponent() {
   const [isLogin, setIsLogin] = useState(true);
   const [profileImage, setProfileImage] = useState(null);
   const [rememberMe, setRememberMe] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -232,6 +247,8 @@ export default function AuthScreenComponent() {
         }
       } catch (error) {
         console.error("Error loading session:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -290,6 +307,20 @@ export default function AuthScreenComponent() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      await AsyncStorage.removeItem("email");
+      await AsyncStorage.removeItem("password");
+      setEmail("");
+      setPassword("");
+      setProfileImage(null);
+      console.log("User logged out and session cleared.");
+    } catch (error) {
+      console.error("Logout error:", error.message);
+    }
+  };
+
   return (
     <AuthScreen
       email={email}
@@ -309,6 +340,7 @@ export default function AuthScreenComponent() {
       setProfileImage={setProfileImage}
       rememberMe={rememberMe}
       setRememberMe={setRememberMe}
+      isLoading={isLoading}
     />
   );
 }
@@ -375,5 +407,10 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 20,
     height: 20,
+  },
+  spinner: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
