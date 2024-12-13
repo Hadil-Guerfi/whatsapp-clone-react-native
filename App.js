@@ -1,13 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from '@firebase/auth';
-import app from './firebaseConfig';
-import AuthScreen from './screens/AuthScreen';
-import AuthenticatedScreen from './screens/AuthenticatedScreen';
+import React, { useState, useEffect } from "react";
+import { ScrollView, StyleSheet } from "react-native";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut,
+} from "@firebase/auth";
+import app from "./firebaseConfig";
+import AuthScreen from "./screens/AuthScreen";
+import AuthenticatedScreen from "./screens/AuthenticatedScreen";
 
 const App = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [user, setUser] = useState(null);
   const [isLogin, setIsLogin] = useState(true);
 
@@ -32,14 +38,17 @@ const App = () => {
         }
       }
     } catch (error) {
-      console.error('Authentication error:', error.message);
+      console.error("Authentication error:", error.message);
     }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {user ? (
-        <AuthenticatedScreen user={user} handleAuthentication={handleAuthentication} />
+        <AuthenticatedScreen
+          user={user}
+          handleAuthentication={handleAuthentication}
+        />
       ) : (
         <AuthScreen
           email={email}
@@ -60,9 +69,8 @@ export default App;
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#f0f0f0',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
   },
 });

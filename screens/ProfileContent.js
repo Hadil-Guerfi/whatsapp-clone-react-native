@@ -1,82 +1,149 @@
-//ProfileContent
-import React, { useState } from "react";
-import { View, Text, TextInput, Button, StyleSheet, Alert } from "react-native";
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Image,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import { auth } from "./../firebaseConfig";
+import supabase from "./supabaseClient";
 import { ref, set, get } from "firebase/database";
-import { auth, database } from "./../firebaseConfig";
+import { database } from "../firebaseConfig"; // Assurez-vous que `database` est correctement importé
 
-const ProfileContent = ({ user }) => {
-  const [email, setEmail] = useState(user.email);
-  const [fullname, setFullname] = useState(user.fullname);
-  const [pseudo, setPseudo] = useState(user.pseudo);
-  const [phone, setPhone] = useState(user.phone);
+const uploadImageToSupabase = async (uri) => {
+  const fileName = uri.split("/").pop();
+  const fileExt = fileName.split(".").pop().toLowerCase();
+  const fileType =
+    fileExt === "jpg" || fileExt === "jpeg"
+      ? "image/jpeg"
+      : fileExt === "png"
+      ? "image/png"
+      : null;
 
-  const handleSave = async () => {
-    try {
-      const uid = auth.currentUser.uid;
+  if (!fileType) {
+    Alert.alert("File Error", "Unsupported file type.");
+    return null;
+  }
 
-      // Update user data in Firebase
-      await set(ref(database, `users/${uid}`), {
-        email,
-        fullname,
-        pseudo,
-        phone,
+  try {
+    const response = await fetch(uri);
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = new Uint8Array(arrayBuffer);
+
+    const { data, error } = await supabase.storage
+      .from("images")
+      .upload(`profiles/${auth.currentUser.uid}_${fileName}`, buffer, {
+        contentType: fileType,
       });
 
-      // Fetch the updated data to ensure consistency
-      const snapshot = await get(ref(database, `users/${uid}`));
-      const updatedData = snapshot.val();
+    if (error) {
+      console.error("Upload error:", error);
+      Alert.alert("Upload Error", error.message);
+      return null;
+    }
 
-      // Update fields with the latest values
-      user.fullname = updatedData.fullname;
-      user.pseudo = updatedData.pseudo;
-      user.phone = updatedData.phone;
-      // setEmail(updatedData.email);
-      // setFullname(updatedData.fullname);
-      // setPseudo(updatedData.pseudo);
-      // setPhone(updatedData.phone);
+    const { data: publicData, error: urlError } = supabase.storage
+      .from("images")
+      .getPublicUrl(data.path);
 
-      Alert.alert("Success", "Profile updated successfully!");
-    } catch (error) {
-      console.error("Error updating profile:", error);
-      Alert.alert("Error", "Failed to update profile.");
+    if (urlError) {
+      console.error("URL Error:", urlError);
+      return null;
+    }
+
+    return publicData.publicUrl;
+  } catch (err) {
+    console.error("Unexpected Error:", err);
+    Alert.alert("Error", err.message);
+    return null;
+  }
+};
+
+const ProfileScreen = () => {
+  const [profileImage, setProfileImage] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchProfileImage = async () => {
+    setLoading(true);
+    try {
+      const snapshot = await get(
+        ref(database, `users/${auth.currentUser.uid}`)
+      );
+      const userData = snapshot.val();
+
+      if (userData?.picture) {
+        setProfileImage(userData.picture);
+      }
+    } catch (err) {
+      console.error("Error fetching profile image:", err);
+      Alert.alert("Error", "Could not load profile image.");
+    } finally {
+      setLoading(false);
     }
   };
 
+  const updateProfileImage = async (uri) => {
+    const uploadedImageUrl = await uploadImageToSupabase(uri);
+    if (!uploadedImageUrl) return;
+
+    setLoading(true);
+    try {
+      await set(
+        ref(database, `users/${auth.currentUser.uid}/picture`),
+        uploadedImageUrl
+      );
+      setProfileImage(uploadedImageUrl);
+      Alert.alert("Success", "Profile image updated!");
+    } catch (err) {
+      console.error("Error updating profile image:", err);
+      Alert.alert("Error", "Could not update profile image.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const pickImageFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission Denied", "We need access to your library.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      updateProfileImage(result.assets[0].uri);
+    }
+  };
+
+  useEffect(() => {
+    fetchProfileImage();
+  }, []);
+
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Edit Profile</Text>
-
-      <TextInput
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-        placeholder="Email"
-        editable={false} // Email is not editable
-      />
-
-      <TextInput
-        style={styles.input}
-        value={fullname}
-        onChangeText={setFullname}
-        placeholder="Full Name"
-      />
-
-      <TextInput
-        style={styles.input}
-        value={pseudo}
-        onChangeText={setPseudo}
-        placeholder="Pseudo"
-      />
-
-      <TextInput
-        style={styles.input}
-        value={phone}
-        onChangeText={setPhone}
-        placeholder="Phone"
-        keyboardType="phone-pad"
-      />
-
-      <Button title="Save" onPress={handleSave} color="#3498db" />
+      <Text style={styles.title}>Profile</Text>
+      {loading ? (
+        <ActivityIndicator size="large" color="#3498db" />
+      ) : (
+        <Image
+          source={
+            profileImage ? { uri: profileImage } : require("../assets/logo.png") // Add a default profile image in assets folder
+          }
+          style={styles.profileImage}
+        />
+      )}
+      <TouchableOpacity style={styles.button} onPress={pickImageFromGallery}>
+        <Text style={styles.buttonText}>Choose from Gallery</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -84,24 +151,33 @@ const ProfileContent = ({ user }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    alignItems: "center",
     justifyContent: "center",
+    padding: 20,
   },
-  header: {
+  title: {
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 20,
-    textAlign: "center",
   },
-  input: {
-    height: 50,
-    borderColor: "#ccc",
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginBottom: 15,
+  profileImage: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: "#ddd",
+  },
+  button: {
+    backgroundColor: "#3498db",
+    padding: 10,
+    borderRadius: 10,
+    marginVertical: 10,
+  },
+  buttonText: {
+    color: "#fff",
     fontSize: 16,
   },
 });
 
-export default ProfileContent;
+export default ProfileScreen;

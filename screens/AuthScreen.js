@@ -3,49 +3,100 @@ import {
   View,
   Text,
   TextInput,
+  ImageBackground,
   Button,
+  Alert,
   StyleSheet,
   Image,
   TouchableOpacity,
 } from "react-native";
-import { auth, database } from "../firebaseConfig"; // Keep Firebase auth import
+import { auth, database } from "../firebaseConfig"; // Firebase auth import
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
 } from "firebase/auth";
-import { ref, set, get, getDatabase } from "firebase/database";
+import { ref, set, get } from "firebase/database";
 import * as ImagePicker from "expo-image-picker";
-// import supabase from '../supabaseClient'; // Supabase client import
+import supabase from "./supabaseClient"; // Supabase client import
+
+// Function to generate a unique filename
+const generateUniqueFileName = () => {
+  const timestamp = Date.now();
+  const randomId = Math.random().toString(36).substring(2, 15);
+  return `${timestamp}-${randomId}.jpg`;
+};
+
+const uploadImageToSupabase = async (uri) => {
+  const fileName = generateUniqueFileName();
+  const fileExt = fileName.split(".").pop().toLowerCase();
+  const fileType =
+    fileExt === "jpg" || fileExt === "jpeg"
+      ? "image/jpeg"
+      : fileExt === "png"
+      ? "image/png"
+      : null;
+
+  if (!fileType) {
+    Alert.alert("File Error", "Unsupported file type.");
+    return null;
+  }
+
+  try {
+    const response = await fetch(uri);
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = new Uint8Array(arrayBuffer);
+
+    const { data, error } = await supabase.storage
+      .from("images")
+      .upload(`profile_images/${fileName}`, buffer, {
+        contentType: fileType,
+      });
+
+    if (error) {
+      console.error("Upload error:", error);
+      Alert.alert("Upload Error", error.message);
+      return null;
+    }
+
+    const { data: publicData, error: urlError } = supabase.storage
+      .from("images")
+      .getPublicUrl(data.path);
+
+    if (urlError) {
+      console.error("URL Error:", urlError);
+      return null;
+    }
+
+    return publicData.publicUrl;
+  } catch (err) {
+    console.error("Unexpected Error:", err);
+    Alert.alert("Error", err.message);
+    return null;
+  }
+};
 
 const ImagePickerComponent = ({ setProfileImage }) => {
-  // Request permissions when the component mounts
-  useEffect(() => {
-    const requestPermissions = async () => {
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "Permission Required",
-          "Permission to access the media library is required."
-        );
-      }
-    };
-    requestPermissions();
-  }, []);
   const pickImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false,
+        allowsEditing: true,
         quality: 1,
       });
 
       if (!result.canceled) {
-        setProfileImage(result.assets[0].uri);
-        console.log("Image selected:", result.assets[0].uri);
+        const uri = result.assets[0].uri;
+        const uploadedImageUrl = await uploadImageToSupabase(uri);
+        if (uploadedImageUrl) {
+          setProfileImage(uploadedImageUrl);
+          console.log(
+            "Image uploaded and public URL obtained:",
+            uploadedImageUrl
+          );
+        }
       }
     } catch (error) {
-      console.error("Error picking image:", error);
+      console.error("Error picking or uploading image:", error);
     }
   };
 
@@ -74,64 +125,72 @@ const AuthScreen = ({
   setProfileImage,
 }) => {
   return (
-    <View style={styles.authContainer}>
-      <Text style={styles.title}>{isLogin ? "Sign In" : "Sign Up"}</Text>
-      <TextInput
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-        placeholder="Email"
-        autoCapitalize="none"
-      />
-      <TextInput
-        style={styles.input}
-        value={password}
-        onChangeText={setPassword}
-        placeholder="Password"
-        secureTextEntry
-      />
-      {/* New Fields */}
-      {!isLogin && (
-        <>
-          <TextInput
-            style={styles.input}
-            value={fullname}
-            onChangeText={setFullname}
-            placeholder="Full Name"
-          />
-          <TextInput
-            style={styles.input}
-            value={pseudo}
-            onChangeText={setPseudo}
-            placeholder="Pseudo"
-          />
-          <TextInput
-            style={styles.input}
-            value={phone}
-            onChangeText={setPhone}
-            placeholder="Phone Number"
-            keyboardType="phone-pad"
-          />
-          <ImagePickerComponent setProfileImage={setProfileImage} />
-          {profileImage && (
-            <Image source={{ uri: profileImage }} style={styles.profileImage} />
-          )}
-        </>
-      )}
-      <View style={styles.buttonContainer}>
-        <Button
-          title={isLogin ? "Sign In" : "Sign Up"}
-          onPress={handleAuthentication}
-          color="#3498db"
+    <View style={styles.container}>
+      <ImageBackground
+        style={styles.background}
+        source={require("../assets/background.jpg")}>
+        <Image source={require("../assets/logo.png")} style={styles.logo} />
+
+        <Text style={styles.title}>{isLogin ? "Sign In" : "Sign Up"}</Text>
+        <TextInput
+          style={styles.input}
+          value={email}
+          onChangeText={setEmail}
+          placeholder="Email"
+          autoCapitalize="none"
         />
-      </View>
-      <View style={styles.bottomContainer}>
-        <Text style={styles.toggleText} onPress={() => setIsLogin(!isLogin)}>
-          {isLogin
-            ? "Need an account? Sign Up"
-            : "Already have an account? Sign In"}
-        </Text>
-      </View>
+        <TextInput
+          style={styles.input}
+          value={password}
+          onChangeText={setPassword}
+          placeholder="Password"
+          secureTextEntry
+        />
+        {!isLogin && (
+          <>
+            <TextInput
+              style={styles.input}
+              value={fullname}
+              onChangeText={setFullname}
+              placeholder="Full Name"
+            />
+            <TextInput
+              style={styles.input}
+              value={pseudo}
+              onChangeText={setPseudo}
+              placeholder="Pseudo"
+            />
+            <TextInput
+              style={styles.input}
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="Phone Number"
+              keyboardType="phone-pad"
+            />
+            <ImagePickerComponent setProfileImage={setProfileImage} />
+            {profileImage && (
+              <Image
+                source={{ uri: profileImage }}
+                style={styles.profileImage}
+              />
+            )}
+          </>
+        )}
+        <View style={styles.buttonContainer}>
+          <Button
+            title={isLogin ? "Sign In" : "Sign Up"}
+            onPress={handleAuthentication}
+            color="#27b141"
+          />
+        </View>
+        <View style={styles.bottomContainer}>
+          <Text style={styles.toggleText} onPress={() => setIsLogin(!isLogin)}>
+            {isLogin
+              ? "Need an account? Sign Up"
+              : "Already have an account? Sign In"}
+          </Text>
+        </View>
+      </ImageBackground>
     </View>
   );
 };
@@ -144,12 +203,10 @@ export default function AuthScreenComponent() {
   const [phone, setPhone] = useState("");
   const [isLogin, setIsLogin] = useState(true);
   const [profileImage, setProfileImage] = useState(null);
-  const [user, setUser] = useState(null);
 
   const handleAuthentication = async () => {
     try {
       if (isLogin) {
-        // Sign in logic
         const userCredential = await signInWithEmailAndPassword(
           auth,
           email,
@@ -157,53 +214,25 @@ export default function AuthScreenComponent() {
         );
         const user = userCredential.user;
 
-        // Retrieve user data from Firebase Realtime Database or Supabase
         const userDataSnapshot = await get(ref(database, `users/${user.uid}`));
         const userData = userDataSnapshot.val();
+        setProfileImage(userData.picture || null);
 
-        // Set user state to reflect retrieved data
-        setUser({
-          email: user.email,
-          fullname: userData.fullname,
-          pseudo: userData.pseudo,
-          phone: userData.phone,
-        });
-
-        console.log("User signed in successfully!");
+        console.log("User signed in successfully!", userData);
       } else {
-        // Sign up logic
         const userCredential = await createUserWithEmailAndPassword(
           auth,
           email,
           password
         );
         const user = userCredential.user;
-        if (profileImage) {
-          const response = await fetch(profileImage);
-          if (!response.ok) {
-            throw new Error("Failed to fetch image");
-          }
-          const blob = await response.blob();
-          const fileName = "one"; //`${user.uid}-profile-image`;  // Create a unique file name for the user
-          console.log("hiii");
-          // const { data, error } = await supabase.storage
-          //   .from('files')  // Ensure you have a bucket called 'avatars'
-          //   .upload(fileName, blob, { contentType: 'image/png' });
-          // console.log("hi");
 
-          // if (error) {
-          //   throw new Error(error.message);
-          // }
-          console.log("hii");
-        }
-
-        // Save user data to Realtime Database
         await set(ref(database, `users/${user.uid}`), {
           email: user.email,
           fullname: fullname,
           pseudo: pseudo,
           phone: phone,
-          picture: `${user.uid}-profile-image`,
+          picture: profileImage,
           createdAt: new Date().toISOString(),
         });
 
@@ -236,10 +265,42 @@ export default function AuthScreenComponent() {
 }
 
 const styles = StyleSheet.create({
-  authContainer: { padding: 16 },
-  title: { fontSize: 24, marginBottom: 16 },
-  input: { borderWidth: 1, marginBottom: 16, padding: 8 },
-  buttonContainer: { marginBottom: 16 },
+  container: {
+    flex: 1,
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#fff",
+  },
+  background: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+    height: "100%",
+  },
+  logo: {
+    width: 90,
+    height: 90,
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#075E54",
+    marginBottom: 20,
+  },
+  input: {
+    width: "80%",
+    padding: 15,
+    marginVertical: 10,
+    backgroundColor: "#fff",
+    paddingHorizontal: 20,
+    fontSize: 16,
+    color: "#333",
+    borderColor: "#ddd",
+    borderRadius: 30,
+  },
+  buttonContainer: { marginBottom: 16, marginTop: 16 },
   bottomContainer: { marginTop: 16 },
   toggleText: { color: "#3498db", textAlign: "center" },
   profileImage: {
@@ -249,8 +310,9 @@ const styles = StyleSheet.create({
     marginVertical: 16,
   },
   galleryButton: {
-    backgroundColor: "#3498db",
+    backgroundColor: "#27b141",
     padding: 10,
+    marginTop: 16,
     borderRadius: 5,
     alignItems: "center",
   },
