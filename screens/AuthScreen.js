@@ -10,16 +10,18 @@ import {
   Image,
   TouchableOpacity,
 } from "react-native";
+import CheckBox from "expo-checkbox";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { auth, database } from "../firebaseConfig"; // Firebase auth import
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signOut,
 } from "firebase/auth";
 import { ref, set, get } from "firebase/database";
 import * as ImagePicker from "expo-image-picker";
 import supabase from "./supabaseClient"; // Supabase client import
 
-// Function to generate a unique filename
 const generateUniqueFileName = () => {
   const timestamp = Date.now();
   const randomId = Math.random().toString(36).substring(2, 15);
@@ -123,6 +125,8 @@ const AuthScreen = ({
   handleAuthentication,
   profileImage,
   setProfileImage,
+  rememberMe,
+  setRememberMe,
 }) => {
   return (
     <View style={styles.container}>
@@ -176,6 +180,16 @@ const AuthScreen = ({
             )}
           </>
         )}
+        {isLogin && (
+          <View style={styles.rememberMeContainer}>
+            <CheckBox
+              value={rememberMe}
+              onValueChange={setRememberMe}
+              style={styles.checkbox}
+            />
+            <Text style={styles.rememberMeText}>Remember Me</Text>
+          </View>
+        )}
         <View style={styles.buttonContainer}>
           <Button
             title={isLogin ? "Sign In" : "Sign Up"}
@@ -203,23 +217,56 @@ export default function AuthScreenComponent() {
   const [phone, setPhone] = useState("");
   const [isLogin, setIsLogin] = useState(true);
   const [profileImage, setProfileImage] = useState(null);
+  const [rememberMe, setRememberMe] = useState(false);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const storedEmail = await AsyncStorage.getItem("email");
+        const storedPassword = await AsyncStorage.getItem("password");
+
+        if (storedEmail && storedPassword) {
+          setEmail(storedEmail);
+          setPassword(storedPassword);
+          await handleLogin(storedEmail, storedPassword);
+        }
+      } catch (error) {
+        console.error("Error loading session:", error);
+      }
+    };
+
+    checkSession();
+  }, []);
+
+  const handleLogin = async (email, password) => {
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      const user = userCredential.user;
+
+      const userDataSnapshot = await get(ref(database, `users/${user.uid}`));
+      const userData = userDataSnapshot.val();
+      setProfileImage(userData.picture || null);
+
+      console.log("User signed in successfully!", userData);
+
+      if (rememberMe) {
+        await AsyncStorage.setItem("email", email);
+        await AsyncStorage.setItem("password", password);
+      }
+    } catch (error) {
+      console.error("Authentication error:", error.message);
+    }
+  };
 
   const handleAuthentication = async () => {
-    try {
-      if (isLogin) {
-        const userCredential = await signInWithEmailAndPassword(
-          auth,
-          email,
-          password
-        );
-        const user = userCredential.user;
-
-        const userDataSnapshot = await get(ref(database, `users/${user.uid}`));
-        const userData = userDataSnapshot.val();
-        setProfileImage(userData.picture || null);
-
-        console.log("User signed in successfully!", userData);
-      } else {
+    if (isLogin) {
+      await handleLogin(email, password);
+    } else {
+      try {
         const userCredential = await createUserWithEmailAndPassword(
           auth,
           email,
@@ -237,9 +284,9 @@ export default function AuthScreenComponent() {
         });
 
         console.log("User signed up and data saved to database!");
+      } catch (error) {
+        console.error("Authentication error:", error.message);
       }
-    } catch (error) {
-      console.error("Authentication error:", error.message);
     }
   };
 
@@ -260,6 +307,8 @@ export default function AuthScreenComponent() {
       handleAuthentication={handleAuthentication}
       profileImage={profileImage}
       setProfileImage={setProfileImage}
+      rememberMe={rememberMe}
+      setRememberMe={setRememberMe}
     />
   );
 }
@@ -317,4 +366,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   galleryButtonText: { color: "#fff" },
+  rememberMeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 10,
+  },
+  rememberMeText: { marginLeft: 8 },
+  checkbox: {
+    width: 20,
+    height: 20,
+  },
 });

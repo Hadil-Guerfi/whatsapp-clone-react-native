@@ -10,6 +10,7 @@ import GroupsContent from "./GroupsContent";
 import { auth, database } from "./../firebaseConfig"; // Import firebase config
 import ChatScreen from "./ChatScreen";
 import GroupChatScreen from "./GroupChatScreen";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const AuthenticatedScreen = ({ navigation }) => {
   const [selectedTab, setSelectedTab] = useState("Profile"); // Default to Profile
@@ -39,10 +40,12 @@ const AuthenticatedScreen = ({ navigation }) => {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth); // Sign out the user from Firebase Authentication
-      setUser(null); // Clear user data from state
+      await signOut(auth);
+      await AsyncStorage.removeItem("email");
+      await AsyncStorage.removeItem("password");
+      console.log("User logged out and session cleared.");
     } catch (error) {
-      console.error("Error signing out: ", error.message); // Handle sign out errors
+      console.error("Logout error:", error.message);
     }
   };
 
