@@ -78,8 +78,8 @@ const AuthenticatedScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Navbar setSelectedTab={setSelectedTab} />
       {renderContent()}
+      <Navbar setSelectedTab={setSelectedTab} />
     </View>
   );
 };
@@ -87,7 +87,8 @@ const AuthenticatedScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 60, // Adjust this if using a custom status bar or navbar height
+    width: "100%",
+    paddingTop: 30, // Adjust this if using a custom status bar or navbar height
   },
 });
 
