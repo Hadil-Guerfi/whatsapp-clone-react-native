@@ -95,6 +95,36 @@ const ChatsContent = ({ setSelectedTab, setOther }) => {
     fetchUsersAndChats();
   }, [currentUserId]);
 
+  // const handleAddChat = async (userId) => {
+  //   try {
+  //     const chatKey = [currentUserId, userId].sort().join("_");
+  //     const database = getDatabase();
+  //     const chatRef = ref(database, `chats/${chatKey}`);
+
+  //     const chatSnapshot = await get(chatRef);
+  //     if (chatSnapshot.exists()) {
+  //       Alert.alert("Info", "Chat already exists!");
+  //       setModalVisible(false);
+  //       return;
+  //     }
+
+  //     await set(chatRef, {
+  //       users: [currentUserId, userId],
+  //       messages: [],
+  //       createdAt: new Date().toISOString(),
+  //     });
+
+  //     const userToAdd = allUsers.find((user) => user.id === userId);
+  //     setChats((prevChats) => [...prevChats, userToAdd]);
+  //     setAllUsers((prev) => prev.filter((user) => user.id !== userId));
+  //     setModalVisible(false);
+  //     Alert.alert("Success", "Chat added successfully!");
+  //   } catch (error) {
+  //     console.error("Error adding chat:", error);
+  //     Alert.alert("Error", "Failed to add chat.");
+  //   }
+  // };
+
   const handleAddChat = async (userId) => {
     try {
       const chatKey = [currentUserId, userId].sort().join("_");
@@ -171,30 +201,34 @@ const ChatsContent = ({ setSelectedTab, setOther }) => {
             </TouchableOpacity>
           </View>
 
-          {filteredChats.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.chatItemContainer}
-              onPress={() => handleOpenChat(item.id)}>
-              <Image source={{ uri: item.picture }} style={styles.avatar} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.chatItem}>{item.pseudo}</Text>
-                <Text style={styles.lastMessage}>
-                  {lastMessages[item.id]?.text || "Say Hello 👋"}
+          <FlatList
+            data={filteredChats}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.chatItemContainer}
+                onPress={() => handleOpenChat(item.id)} // Start chat on click
+              >
+                <Image source={{ uri: item.picture }} style={styles.avatar} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.chatItem}>{item.pseudo}</Text>
+                  <Text style={styles.lastMessage}>
+                    {lastMessages[item.id]?.text || "Loading..."}
+                  </Text>
+                </View>
+                <Text style={styles.lastMessageTime}>
+                  {lastMessages[item.id]?.timestamp
+                    ? new Date(
+                        lastMessages[item.id].timestamp
+                      ).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : ""}
                 </Text>
-              </View>
-              <Text style={styles.lastMessageTime}>
-                {lastMessages[item.id]?.timestamp
-                  ? new Date(
-                      lastMessages[item.id].timestamp
-                    ).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  : ""}
-              </Text>
-            </TouchableOpacity>
-          ))}
+              </TouchableOpacity>
+            )}
+          />
 
           <Modal
             animationType="slide"

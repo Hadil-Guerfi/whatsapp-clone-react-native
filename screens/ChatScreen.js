@@ -81,7 +81,7 @@ const ChatScreen = ({ other }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const currentUserId = auth.currentUser?.uid;
   const [locationLoading, setLocationLoading] = useState(false); // State for showing location-loading indicator
-
+  const [otherInfos, setOtherInfos] = useState(null);
   const sendLocation = async () => {
     setLocationLoading(true); // Show loading indicator while fetching location
 
@@ -124,6 +124,9 @@ const ChatScreen = ({ other }) => {
     const database = getDatabase();
     const chatKey = [currentUserId, other].sort().join("_");
     const messagesRef = ref(database, `chats/${chatKey}/messages`);
+
+    const otherRef = ref(database, `users/${other}`);
+
     const messageKeys = new Set();
 
     const fetchMessages = async () => {
@@ -161,7 +164,19 @@ const ChatScreen = ({ other }) => {
       }
     };
 
+    const fetchOther = async () => {
+      try {
+        const otherSnapshot = await get(otherRef);
+        if (otherSnapshot.exists()) {
+          setOtherInfos(otherSnapshot.val());
+        }
+      } catch (error) {
+        console.error("Error fetching messages:", error);
+      }
+    };
+
     fetchMessages();
+    fetchOther();
   }, [currentUserId, other]);
 
   const pickImageFromGallery = async () => {
