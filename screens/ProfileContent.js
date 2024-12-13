@@ -2,17 +2,18 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   Image,
+  Button,
   StyleSheet,
   Alert,
   ActivityIndicator,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { auth } from "./../firebaseConfig";
-import supabase from "./supabaseClient";
+import { auth, database } from "./../firebaseConfig";
 import { ref, set, get } from "firebase/database";
-import { database } from "../firebaseConfig"; // Assurez-vous que `database` est correctement importé
+import supabase from "./supabaseClient";
 
 const uploadImageToSupabase = async (uri) => {
   const fileName = uri.split("/").pop();
@@ -66,8 +67,12 @@ const uploadImageToSupabase = async (uri) => {
 const ProfileScreen = () => {
   const [profileImage, setProfileImage] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [fullname, setFullname] = useState("");
+  const [pseudo, setPseudo] = useState("");
+  const [phone, setPhone] = useState("");
 
-  const fetchProfileImage = async () => {
+  const fetchProfileData = async () => {
     setLoading(true);
     try {
       const snapshot = await get(
@@ -75,12 +80,36 @@ const ProfileScreen = () => {
       );
       const userData = snapshot.val();
 
-      if (userData?.picture) {
-        setProfileImage(userData.picture);
+      if (userData) {
+        setProfileImage(userData.picture || null);
+        setEmail(userData.email || "");
+        setFullname(userData.fullname || "");
+        setPseudo(userData.pseudo || "");
+        setPhone(userData.phone || "");
       }
     } catch (err) {
-      console.error("Error fetching profile image:", err);
-      Alert.alert("Error", "Could not load profile image.");
+      console.error("Error fetching profile data:", err);
+      Alert.alert("Error", "Could not load profile data.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      const uid = auth.currentUser.uid;
+      await set(ref(database, `users/${uid}`), {
+        email,
+        fullname,
+        pseudo,
+        phone,
+        picture: profileImage,
+      });
+      Alert.alert("Success", "Profile updated successfully!");
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      Alert.alert("Error", "Failed to update profile.");
     } finally {
       setLoading(false);
     }
@@ -92,12 +121,7 @@ const ProfileScreen = () => {
 
     setLoading(true);
     try {
-      await set(
-        ref(database, `users/${auth.currentUser.uid}/picture`),
-        uploadedImageUrl
-      );
       setProfileImage(uploadedImageUrl);
-      Alert.alert("Success", "Profile image updated!");
     } catch (err) {
       console.error("Error updating profile image:", err);
       Alert.alert("Error", "Could not update profile image.");
@@ -125,25 +149,59 @@ const ProfileScreen = () => {
   };
 
   useEffect(() => {
-    fetchProfileImage();
+    fetchProfileData();
   }, []);
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Profile</Text>
+      <Text style={styles.title}>Edit Profile</Text>
+
       {loading ? (
         <ActivityIndicator size="large" color="#3498db" />
       ) : (
         <Image
           source={
-            profileImage ? { uri: profileImage } : require("../assets/logo.png") // Add a default profile image in assets folder
+            profileImage ? { uri: profileImage } : require("../assets/logo.png")
           }
           style={styles.profileImage}
         />
       )}
+
       <TouchableOpacity style={styles.button} onPress={pickImageFromGallery}>
         <Text style={styles.buttonText}>Choose from Gallery</Text>
       </TouchableOpacity>
+
+      <TextInput
+        style={styles.input}
+        value={email}
+        onChangeText={setEmail}
+        placeholder="Email"
+        editable={false} // Email is not editable
+      />
+
+      <TextInput
+        style={styles.input}
+        value={fullname}
+        onChangeText={setFullname}
+        placeholder="Full Name"
+      />
+
+      <TextInput
+        style={styles.input}
+        value={pseudo}
+        onChangeText={setPseudo}
+        placeholder="Pseudo"
+      />
+
+      <TextInput
+        style={styles.input}
+        value={phone}
+        onChangeText={setPhone}
+        placeholder="Phone"
+        keyboardType="phone-pad"
+      />
+
+      <Button title="Save" onPress={handleSave} color="#3498db" />
     </View>
   );
 };
@@ -151,9 +209,9 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
     padding: 20,
+    justifyContent: "center",
+    alignItems: "center",
   },
   title: {
     fontSize: 24,
@@ -177,6 +235,16 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontSize: 16,
+  },
+  input: {
+    height: 50,
+    borderColor: "#ccc",
+    borderWidth: 1,
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginBottom: 15,
+    fontSize: 16,
+    width: "100%",
   },
 });
 
