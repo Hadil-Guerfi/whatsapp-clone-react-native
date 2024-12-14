@@ -79,7 +79,7 @@ const uploadImageToSupabase = async (uri) => {
   }
 };
 
-const GroupChatScreen = ({ selectedGroup }) => {
+const GroupChatScreen = ({ selectedGroup, setSelectedTab }) => {
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState("");
   const [group, setGroup] = useState(null);
@@ -110,7 +110,8 @@ const GroupChatScreen = ({ selectedGroup }) => {
 
           const groupMembers = groupData.members.map((id) => ({
             id,
-            name: users[id]?.fullname || "Unknown",
+            name: users[id]?.pseudo || "Unknown",
+            picture: users[id]?.picture,
           }));
           if (isMounted) {
             setMembers(groupMembers);
@@ -145,37 +146,6 @@ const GroupChatScreen = ({ selectedGroup }) => {
       isMounted = false;
     };
   }, [selectedGroup]);
-
-  // const sendMessage = async () => {
-  //   if (!messageText.trim() && !file) return;
-
-  //   let fileUrl = "";
-
-  //   if (file && file.type === "image") {
-  //     fileUrl = await uploadImageToSupabase(file.uri);
-  //     if (!fileUrl) return;
-  //   }
-
-  //   const newMessage = {
-  //     senderId: currentUserId,
-  //     text: messageText.trim(),
-  //     timestamp: new Date().toISOString(),
-  //     file: fileUrl ? { uri: fileUrl, type: "image" } : null,
-  //   };
-
-  //   const database = getDatabase();
-  //   const newMessageRef = push(
-  //     ref(database, `groups/${selectedGroup}/messages`)
-  //   );
-
-  //   try {
-  //     await set(newMessageRef, newMessage);
-  //     setMessageText("");
-  //     setFile(null);
-  //   } catch (error) {
-  //     console.error("Error sending message:", error);
-  //   }
-  // };
 
   const sendMessage = async () => {
     if (messageText.trim() === "" && !file) {
@@ -379,6 +349,48 @@ const GroupChatScreen = ({ selectedGroup }) => {
     return sender ? sender.name : "Unknown";
   };
 
+  const getSenderPic = (senderId) => {
+    if (senderId === currentUserId) {
+      return "null"; // Return "Me" if the sender is the current user
+    }
+    const sender = members.find((member) => member.id === senderId);
+    return sender ? sender.picture : "null";
+  };
+
+  const deleteGroup = async () => {
+    try {
+      const database = getDatabase();
+      const groupRef = ref(database, `groups/${selectedGroup}`);
+
+      // Confirm before deleting
+      Alert.alert(
+        "Delete Group",
+        "Are you sure you want to delete this group?",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Delete",
+            onPress: async () => {
+              // Delete the group
+              await set(groupRef, null);
+
+              // Navigate to Groups screen
+              setSelectedTab("Groups");
+              // navigation.navigate("Groups");
+            },
+            style: "destructive",
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("Error deleting group:", error);
+      Alert.alert("Delete Error", error.message);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -400,12 +412,15 @@ const GroupChatScreen = ({ selectedGroup }) => {
             <Text style={styles.title}>
               {group ? group.name : "Loading..."}
             </Text>
+            <TouchableOpacity style={styles.deleteButton} onPress={deleteGroup}>
+              <Ionicons name="trash" size={24} color="red" />
+            </TouchableOpacity>
           </View>
 
           <View style={{ flex: 1, marginTop: 85 }}>
             {messages
               .slice() // Make a copy of the messages array
-              .reverse() 
+              .reverse()
               .map((item, index) => (
                 <View
                   key={`${item.senderId}_${item.timestamp}`} // Unique key using senderId and timestamp
@@ -414,9 +429,26 @@ const GroupChatScreen = ({ selectedGroup }) => {
                       ? styles.myMessage
                       : styles.otherMessage
                   }>
-                  <Text style={styles.senderName}>
-                    {getSenderName(item.senderId)}
-                  </Text>
+                  <View
+                    style={{
+                      display: "flex",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 10,
+                      marginBottom: 10,
+                    }}>
+                    {getSenderPic(item.senderId) &&
+                      item.senderId !== currentUserId && (
+                        <Image
+                          source={{ uri: getSenderPic(item.senderId) }}
+                          style={styles.avatar}
+                        />
+                      )}
+                    <Text style={styles.senderName}>
+                      {getSenderName(item.senderId)}
+                    </Text>
+                  </View>
+
                   <Text style={styles.messageText}>
                     {item.text.includes("https://www.google.com/maps") ? (
                       <Text
@@ -542,7 +574,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     zIndex: 1,
     flexDirection: "row",
-    justifyContent: "flex-start",
+    justifyContent: "space-between",
 
     height: 60,
     gap: 10,
@@ -692,6 +724,11 @@ const styles = StyleSheet.create({
     color: "#333",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  senderName: {
+    fontSize: 16,
+    fontWeight: "bold",
+    flex: 1,
   },
 });
 

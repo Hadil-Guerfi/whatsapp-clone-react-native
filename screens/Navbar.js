@@ -30,7 +30,7 @@ const Navbar = ({ setSelectedTab }) => {
         style={styles.navButton}
         onPress={() => setSelectedTab("Logout")}>
         <Icon name="logout" size={28} color="#d32f2f" style={styles.icon} />
-        <Text style={styles.navText}>Logout</Text>
+        <Text style={styles.logoutText}>Logout</Text>
       </TouchableOpacity>
     </View>
   );
@@ -61,6 +61,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: "500",
   },
+  logoutText: {
+    fontSize: 12,
+    color: "#d32f2f",
+    marginTop: 4,
+    fontWeight: "500",
+  },
+
   icon: {
     marginBottom: 2,
   },
