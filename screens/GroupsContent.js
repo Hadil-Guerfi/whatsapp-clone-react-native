@@ -62,6 +62,7 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
 
     fetchData();
   }, [currentUserId]);
+
   const createGroup = async () => {
     if (!groupName.trim() || selectedUsers.length === 0) {
       Alert.alert("Error", "Provide a group name and select members.");
@@ -70,7 +71,6 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
 
     const database = getDatabase();
     const groupId = push(ref(database, "groups")).key;
-    // const chatId = push(ref(database, "chats")).key; // Create unique chat ID
 
     try {
       const groupMembers = [currentUserId, ...selectedUsers];
@@ -78,7 +78,6 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
       await set(ref(database, `groups/${groupId}`), {
         name: groupName.trim(),
         members: groupMembers,
-        // chatId, // Link the chat ID to the group
         groupCreator: currentUserId, // Store the ID of the group creator
       });
 
@@ -88,7 +87,6 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
           id: groupId,
           name: groupName.trim(),
           members: groupMembers,
-          // chatId,
           groupCreator: currentUserId,
         },
       ]);

@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import CheckBox from "expo-checkbox";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { auth, database } from "../firebaseConfig"; // Firebase auth import
+import { auth, database } from "../firebaseConfig";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -21,7 +21,7 @@ import {
 } from "firebase/auth";
 import { ref, set, get } from "firebase/database";
 import * as ImagePicker from "expo-image-picker";
-import supabase from "./supabaseClient"; // Supabase client import
+import supabase from "./supabaseClient";
 
 const generateUniqueFileName = () => {
   const timestamp = Date.now();
@@ -105,7 +105,7 @@ const ImagePickerComponent = ({ setProfileImage }) => {
 
   return (
     <TouchableOpacity onPress={pickImage} style={styles.galleryButton}>
-      <Text style={styles.galleryButtonText}>Pick Image from Gallery</Text>
+      <Text style={styles.galleryButtonText}>Pick Image</Text>
     </TouchableOpacity>
   );
 };
@@ -304,20 +304,6 @@ export default function AuthScreenComponent() {
       } catch (error) {
         console.error("Authentication error:", error.message);
       }
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      await AsyncStorage.removeItem("email");
-      await AsyncStorage.removeItem("password");
-      setEmail("");
-      setPassword("");
-      setProfileImage(null);
-      console.log("User logged out and session cleared.");
-    } catch (error) {
-      console.error("Logout error:", error.message);
     }
   };
 

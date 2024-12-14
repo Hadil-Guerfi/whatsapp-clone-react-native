@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
   StyleSheet,
   ActivityIndicator,
   Image,
@@ -24,11 +23,10 @@ import {
 } from "firebase/database";
 import { auth } from "./../firebaseConfig";
 import * as ImagePicker from "expo-image-picker";
-import supabase from "./supabaseClient"; // Import the Supabase client
-import * as Location from "expo-location"; // Import Location API
-import { Ionicons, MaterialIcons } from "react-native-vector-icons"; // Import vector icons
-import * as DocumentPicker from "expo-document-picker"; // Import Document Picker
-import Icon from "react-native-vector-icons/MaterialIcons"; // Example icon set
+import supabase from "./supabaseClient";
+import * as Location from "expo-location";
+import { Ionicons, MaterialIcons } from "react-native-vector-icons";
+import * as DocumentPicker from "expo-document-picker";
 
 const uploadImageToSupabase = async (uri) => {
   const fileName = uri.split("/").pop();
@@ -345,7 +343,11 @@ const GroupChatScreen = ({ selectedGroup, setSelectedTab }) => {
     if (senderId === currentUserId) {
       return "Me"; // Return "Me" if the sender is the current user
     }
+
     const sender = members.find((member) => member.id === senderId);
+
+    console.log({ sender });
+
     return sender ? sender.name : "Unknown";
   };
 
@@ -400,6 +402,8 @@ const GroupChatScreen = ({ selectedGroup, setSelectedTab }) => {
     );
   }
 
+  console.log(messages);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ImageBackground
@@ -435,6 +439,7 @@ const GroupChatScreen = ({ selectedGroup, setSelectedTab }) => {
                       flexDirection: "row",
                       alignItems: "center",
                       gap: 10,
+                      minWidth: "100",
                       marginBottom: 10,
                     }}>
                     {getSenderPic(item.senderId) &&

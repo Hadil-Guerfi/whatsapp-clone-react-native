@@ -129,7 +129,7 @@ const ChatsContent = ({ setSelectedTab, setOther }) => {
       setAllUsers((prev) => prev.filter((user) => user.id !== userId));
       setLastMessages((prevMessages) => ({
         ...prevMessages,
-        [userId]: "Say Hello 👋", // Set a default message for the new chat
+        [userId]: "Say Hello 👋",
       }));
 
       setModalVisible(false);

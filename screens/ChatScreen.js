@@ -168,44 +168,6 @@ const ChatScreen = ({ other, setSelectedTab }) => {
     }
   }, [other, currentUserId]);
 
-  const sendLocation = async () => {
-    setLocationLoading(true);
-
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "Permission Denied",
-          "We need location access to share it."
-        );
-        setLocationLoading(false);
-        return;
-      }
-
-      const { coords } = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = coords;
-
-      const locationUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
-
-      const newMessage = {
-        senderId: currentUserId,
-        text: `📍 Location: ${locationUrl}`,
-        timestamp: Date.now(),
-        file: null,
-      };
-
-      const database = getDatabase();
-      const chatKey = [currentUserId, other].sort().join("_");
-      const messagesRef = ref(database, `chats/${chatKey}/messages`);
-
-      await set(push(messagesRef), newMessage);
-    } catch (error) {
-      console.error("Error sharing location:", error);
-      Alert.alert("Location Error", error.message);
-    } finally {
-      setLocationLoading(false); // Hide loading indicator
-    }
-  };
   useEffect(() => {
     const database = getDatabase();
     const chatKey = [currentUserId, other].sort().join("_");
@@ -250,6 +212,45 @@ const ChatScreen = ({ other, setSelectedTab }) => {
 
     fetchMessages();
   }, [currentUserId, other]);
+
+  const sendLocation = async () => {
+    setLocationLoading(true);
+
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Denied",
+          "We need location access to share it."
+        );
+        setLocationLoading(false);
+        return;
+      }
+
+      const { coords } = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = coords;
+
+      const locationUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
+
+      const newMessage = {
+        senderId: currentUserId,
+        text: `📍 Location: ${locationUrl}`,
+        timestamp: Date.now(),
+        file: null,
+      };
+
+      const database = getDatabase();
+      const chatKey = [currentUserId, other].sort().join("_");
+      const messagesRef = ref(database, `chats/${chatKey}/messages`);
+
+      await set(push(messagesRef), newMessage);
+    } catch (error) {
+      console.error("Error sharing location:", error);
+      Alert.alert("Location Error", error.message);
+    } finally {
+      setLocationLoading(false); 
+    }
+  };
 
   const pickImageFromGallery = async () => {
     setModalVisible(false);
@@ -308,6 +309,7 @@ const ChatScreen = ({ other, setSelectedTab }) => {
       console.warn("Phone number is not available");
     }
   };
+
   const sendMessage = async () => {
     if (messageText.trim() === "" && !file) {
       Alert.alert(
