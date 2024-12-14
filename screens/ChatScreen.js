@@ -78,7 +78,7 @@ const uploadImageToSupabase = async (uri) => {
   }
 };
 
-const ChatScreen = ({ other }) => {
+const ChatScreen = ({ other, setSelectedTab }) => {
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState("");
   const [file, setFile] = useState(null);
@@ -362,6 +362,38 @@ const ChatScreen = ({ other }) => {
     }
   };
 
+  const deleteChat = async () => {
+    try {
+      const database = getDatabase();
+
+      const chatKey = [currentUserId, other].sort().join("_");
+
+      const chatRef = ref(database, `chats/${chatKey}`);
+
+      // Confirm before deleting
+      Alert.alert("Delete Chat", "Are you sure you want to delete this chat?", [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          onPress: async () => {
+            // Delete the chat
+            await set(chatRef, null);
+
+            // Navigate to Chats screen
+            setSelectedTab("Chats");
+          },
+          style: "destructive",
+        },
+      ]);
+    } catch (error) {
+      console.error("Error deleting group:", error);
+      Alert.alert("Delete Error", error.message);
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ImageBackground
@@ -383,6 +415,10 @@ const ChatScreen = ({ other }) => {
                 <Icon name="phone" size={24} color="#4CAF50" />
               </TouchableOpacity>
             )}
+
+            <TouchableOpacity style={styles.deleteButton} onPress={deleteChat}>
+              <Ionicons name="trash" size={24} color="red" />
+            </TouchableOpacity>
           </View>
 
           <View style={{ flex: 1, marginTop: 85 }}>
