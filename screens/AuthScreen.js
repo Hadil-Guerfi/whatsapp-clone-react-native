@@ -234,6 +234,7 @@ export default function AuthScreenComponent() {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  //checkSession with async storage
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -254,6 +255,8 @@ export default function AuthScreenComponent() {
 
     checkSession();
   }, []);
+
+  //Sign in
 
   const handleLogin = async (email, password) => {
     try {
@@ -279,6 +282,7 @@ export default function AuthScreenComponent() {
     }
   };
 
+  //Sign up
   const handleAuthentication = async () => {
     if (isLogin) {
       await handleLogin(email, password);

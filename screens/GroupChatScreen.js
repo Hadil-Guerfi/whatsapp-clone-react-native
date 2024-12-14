@@ -402,7 +402,6 @@ const GroupChatScreen = ({ selectedGroup, setSelectedTab }) => {
     );
   }
 
-  console.log(messages);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
