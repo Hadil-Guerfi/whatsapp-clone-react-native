@@ -25,6 +25,7 @@ const ChatsContent = ({ setSelectedTab, setOther }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const currentUserEmail = auth.currentUser?.email;
   const currentUserId = auth.currentUser?.uid;
+  const [otherInfos, setOtherInfos] = useState(null);
 
   useEffect(() => {
     const fetchUsersAndChats = async () => {
@@ -137,7 +138,7 @@ const ChatsContent = ({ setSelectedTab, setOther }) => {
     }
   };
 
-  const handleOpenChat = (userId) => {
+  const handleOpenChat = async (userId) => {
     setSelectedTab("Talks");
     setOther(userId);
   };
@@ -175,38 +176,35 @@ const ChatsContent = ({ setSelectedTab, setOther }) => {
             </TouchableOpacity>
           </View>
 
-          <FlatList
-            data={filteredChats}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.chatItemContainer}
-                onPress={() => handleOpenChat(item.id)} // Start chat on click
-              >
-                <Image source={{ uri: item.picture }} style={styles.avatar} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.chatItem}>{item.pseudo}</Text>
-                  <Text style={styles.lastMessage}>
-                    {lastMessages[item.id]?.text
-                      ? lastMessages[item.id]?.text
-                      : lastMessages[item.id]?.file
-                      ? "Image sent 📷"
-                      : "Say Hello 👋"}
-                  </Text>
-                </View>
-                <Text style={styles.lastMessageTime}>
-                  {lastMessages[item.id]?.timestamp
-                    ? new Date(
-                        lastMessages[item.id].timestamp
-                      ).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : ""}
+          {filteredChats.map((item) => (
+            <TouchableOpacity
+              key={item.id}
+              style={styles.chatItemContainer}
+              onPress={() => handleOpenChat(item.id)} // Start chat on click
+            >
+              <Image source={{ uri: item.picture }} style={styles.avatar} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.chatItem}>{item.pseudo}</Text>
+                <Text style={styles.lastMessage}>
+                  {lastMessages[item.id]?.text
+                    ? lastMessages[item.id]?.text
+                    : lastMessages[item.id]?.file
+                    ? "Image sent 📷"
+                    : "Say Hello 👋"}
                 </Text>
-              </TouchableOpacity>
-            )}
-          />
+              </View>
+              <Text style={styles.lastMessageTime}>
+                {lastMessages[item.id]?.timestamp
+                  ? new Date(
+                      lastMessages[item.id].timestamp
+                    ).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : ""}
+              </Text>
+            </TouchableOpacity>
+          ))}
 
           <Modal
             animationType="slide"
@@ -231,23 +229,19 @@ const ChatsContent = ({ setSelectedTab, setOther }) => {
                   onChangeText={setModalSearchTerm}
                 />
 
-                <FlatList
-                  data={filteredUsers}
-                  keyExtractor={(item) => item.id}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity
-                      key={item.id}
-                      onPress={() => handleAddChat(item.id)}>
-                      <View style={styles.modalUserContainer}>
-                        <Image
-                          source={{ uri: item.picture }}
-                          style={styles.avatar}
-                        />
-                        <Text style={styles.userEmail}>{item.pseudo}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  )}
-                />
+                {filteredUsers.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    onPress={() => handleAddChat(item.id)}>
+                    <View style={styles.modalUserContainer}>
+                      <Image
+                        source={{ uri: item.picture }}
+                        style={styles.avatar}
+                      />
+                      <Text style={styles.userEmail}>{item.pseudo}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
           </Modal>
