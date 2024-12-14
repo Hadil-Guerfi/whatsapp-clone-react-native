@@ -80,7 +80,9 @@ const ChatsContent = ({ setSelectedTab, setOther }) => {
               text: lastMessage.text
                 ? lastMessage.text
                 : lastMessage.file
-                ? "Image sent 📷"
+                ? lastMessage.file.type === "image"
+                  ? "Image sent 📷"
+                  : "File Sent 📁"
                 : "Say Hello 👋",
               timestamp: lastMessage.timestamp || new Date().toISOString(),
             };
@@ -189,7 +191,9 @@ const ChatsContent = ({ setSelectedTab, setOther }) => {
                   {lastMessages[item.id]?.text
                     ? lastMessages[item.id]?.text
                     : lastMessages[item.id]?.file
-                    ? "Image sent 📷"
+                    ? lastMessages[item.id]?.file === "image"
+                      ? "Image sent 📷"
+                      : "File Sent 📁"
                     : "Say Hello 👋"}
                 </Text>
               </View>

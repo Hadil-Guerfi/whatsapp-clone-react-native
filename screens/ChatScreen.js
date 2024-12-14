@@ -185,10 +185,10 @@ const ChatScreen = ({ other }) => {
     } else {
       console.log("No 'other' parameter provided to fetch data");
     }
-  }, [other, currentUserId]); // Ensure you re-fetch data if 'other' or 'currentUserId' changes
+  }, [other, currentUserId]);
 
   const sendLocation = async () => {
-    setLocationLoading(true); // Show loading indicator while fetching location
+    setLocationLoading(true);
 
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
