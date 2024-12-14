@@ -466,7 +466,7 @@ const ChatScreen = ({ other }) => {
               onChangeText={setMessageText}
             />
             <TouchableOpacity style={styles.sendButton} onPress={pickFile}>
-              <Text style={styles.modalButtonText}>Select a File</Text>
+              <MaterialIcons name="attach-file" size={24} color="white" />
             </TouchableOpacity>
 
             <TouchableOpacity
