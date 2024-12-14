@@ -24,6 +24,7 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
   const [groupName, setGroupName] = useState("");
   const [selectedUsers, setSelectedUsers] = useState([]);
   const currentUserId = auth.currentUser?.uid;
+
   useEffect(() => {
     const fetchData = async () => {
       const database = getDatabase();
@@ -121,28 +122,7 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
       <Text>{item.fullname}</Text>
     </TouchableOpacity>
   );
-  const renderGroupItem = ({ item }) => {
-    // Find the full name of the group creator
-    const groupCreator = allUsersWithCurrent.find(
-      (user) => user.id === item.groupCreator
-    );
-    const creatorName = groupCreator ? groupCreator.fullname : "Unknown";
 
-    return (
-      <View style={styles.groupItem}>
-        <Text style={styles.groupItemTitle}>{item.name}</Text>
-        <Text style={styles.groupCreator}>Admin: {creatorName}</Text>
-
-        <View style={styles.groupActions}>
-          <TouchableOpacity
-            onPress={() => openGroupChat(item)}
-            style={styles.chatButton}>
-            <Text style={styles.chatButtonText}>Start Chat</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
   const [searchTerm, setSearchTerm] = useState("");
   const filtredGroups = groups.filter((group) =>
     group.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -183,14 +163,19 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
 
             return (
               <View key={item.id} style={styles.groupItem}>
-                <Text style={styles.groupItemTitle}>{item.name}</Text>
-                <Text style={styles.groupCreator}>Admin: {creatorName}</Text>
-
-                <View style={styles.groupActions}>
+                <View>
+                  <Text style={styles.groupItemTitle}>{item.name}</Text>
+                  <Text style={styles.groupCreator}>Admin: {creatorName}</Text>
+                </View>
+                <View>
                   <TouchableOpacity
                     onPress={() => openGroupChat(item)}
                     style={styles.chatButton}>
-                    <Text style={styles.chatButtonText}>Start Chat</Text>
+                    <Ionicons
+                      name="chatbubble-ellipses"
+                      size={28}
+                      color="#25D366"
+                    />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -255,6 +240,7 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   content: {
+    width: "100%",
     flex: 1,
     alignItems: "center",
     paddingHorizontal: 20,
@@ -266,9 +252,13 @@ const styles = StyleSheet.create({
     marginVertical: 20,
   },
   groupItem: {
-    width: "100%",
-    marginBottom: 15,
-    borderRadius: 5,
+    width: "90%",
+    marginBottom: 20,
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 20,
+    justifyContent: "space-between",
   },
   searchContainer: {
     width: "100%",
@@ -317,8 +307,8 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   groupName: { fontSize: 16, marginBottom: 10 },
-  groupActions: { flexDirection: "row", justifyContent: "space-between" },
-  chatButton: { backgroundColor: "#3498db", padding: 10, borderRadius: 5 },
+
+  chatButton: { width: "auto", borderRadius: 5 },
   chatButtonText: { color: "#fff" },
 
   // Modal Styles
@@ -394,6 +384,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     flex: 1,
+    marginBottom: 8,
   },
 });
 
