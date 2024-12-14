@@ -8,10 +8,13 @@ import {
   TouchableOpacity,
   Modal,
   Alert,
+  ScrollView,
+  ImageBackground,
   StyleSheet,
 } from "react-native";
 import { ref, get, set, push, update, getDatabase } from "firebase/database";
 import { auth } from "./../firebaseConfig";
+import { Ionicons } from "react-native-vector-icons"; // Importing icon set
 
 const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
   const [groups, setGroups] = useState([]);
@@ -20,7 +23,6 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [selectedUsers, setSelectedUsers] = useState([]);
-  const [currentGroup, setCurrentGroup] = useState(null); // Track the current group being edited
   const currentUserId = auth.currentUser?.uid;
   useEffect(() => {
     const fetchData = async () => {
@@ -67,7 +69,7 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
 
     const database = getDatabase();
     const groupId = push(ref(database, "groups")).key;
-    const chatId = push(ref(database, "chats")).key; // Create unique chat ID
+    // const chatId = push(ref(database, "chats")).key; // Create unique chat ID
 
     try {
       const groupMembers = [currentUserId, ...selectedUsers];
@@ -75,7 +77,7 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
       await set(ref(database, `groups/${groupId}`), {
         name: groupName.trim(),
         members: groupMembers,
-        chatId, // Link the chat ID to the group
+        // chatId, // Link the chat ID to the group
         groupCreator: currentUserId, // Store the ID of the group creator
       });
 
@@ -85,7 +87,7 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
           id: groupId,
           name: groupName.trim(),
           members: groupMembers,
-          chatId,
+          // chatId,
           groupCreator: currentUserId,
         },
       ]);
@@ -101,50 +103,6 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
   const openGroupChat = (group) => {
     setSelectedTab("TalksGroup");
     setSelectedGroup(group.id);
-  };
-  const editGroup = (group) => {
-    if (group.groupCreator !== currentUserId) {
-      Alert.alert(
-        "Permission Denied",
-        "You are not the creator of this group."
-      );
-      return;
-    }
-
-    setCurrentGroup(group); // Set the group to be edited
-    setGroupName(group.name);
-    setSelectedUsers(group.members.filter((id) => id !== currentUserId)); // Exclude the current user
-    setModalVisible(true); // Open the modal to add more users
-  };
-
-  const addMembersToGroup = async () => {
-    if (selectedUsers.length === 0) {
-      Alert.alert("Error", "Select at least one member to add.");
-      return;
-    }
-
-    const database = getDatabase();
-    try {
-      // Update the group with the new members
-      const updatedMembers = [...currentGroup.members, ...selectedUsers];
-      await update(ref(database, `groups/${currentGroup.id}`), {
-        members: updatedMembers,
-      });
-
-      setGroups((prev) =>
-        prev.map((group) =>
-          group.id === currentGroup.id
-            ? { ...group, members: updatedMembers }
-            : group
-        )
-      );
-      setModalVisible(false);
-      setGroupName("");
-      setSelectedUsers([]);
-      Alert.alert("Success", "Members added successfully!");
-    } catch (error) {
-      console.error("Error adding members:", error);
-    }
   };
 
   const renderUserItem = ({ item }) => (
@@ -172,8 +130,8 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
 
     return (
       <View style={styles.groupItem}>
-        <Text style={styles.groupName}>{item.name}</Text>
-        <Text style={styles.groupCreator}>Created by: {creatorName}</Text>
+        <Text style={styles.groupItemTitle}>{item.name}</Text>
+        <Text style={styles.groupCreator}>Admin: {creatorName}</Text>
 
         <View style={styles.groupActions}>
           <TouchableOpacity
@@ -181,87 +139,207 @@ const GroupsContent = ({ setSelectedTab, setSelectedGroup }) => {
             style={styles.chatButton}>
             <Text style={styles.chatButtonText}>Start Chat</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => deleteGroup(item.id)}
-            style={styles.deleteButton}>
-            <Text style={styles.deleteButtonText}>Delete</Text>
-          </TouchableOpacity>
-          {item.groupCreator === currentUserId && ( // Check if the current user is the creator
-            <TouchableOpacity
-              onPress={() => editGroup(item)}
-              style={styles.editButton}>
-              <Text style={styles.editButtonText}>Edit</Text>
-            </TouchableOpacity>
-          )}
         </View>
       </View>
     );
   };
+  const [searchTerm, setSearchTerm] = useState("");
+  const filtredGroups = groups.filter((group) =>
+    group.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Groups</Text>
-      <FlatList
-        data={groups}
-        keyExtractor={(item) => item.id}
-        renderItem={renderGroupItem}
-      />
-      <Button
-        title="Create Group"
-        onPress={() => setModalVisible(true)}
-        color="#3498db"
-      />
-      <Modal visible={modalVisible} animationType="slide">
-        <View style={styles.modalContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Group Name"
-            value={groupName}
-            onChangeText={setGroupName}
-          />
-          <FlatList
-            data={allUsers}
-            keyExtractor={(item) => item.id}
-            renderItem={renderUserItem}
-          />
-          {currentGroup ? (
-            <Button title="Add Members" onPress={addMembersToGroup} />
-          ) : (
-            <Button title="Create" onPress={createGroup} />
-          )}
-          <Button
-            title="Close"
-            onPress={() => setModalVisible(false)}
-            color="#e74c3c"
-          />
+    <ScrollView contentContainerStyle={styles.container}>
+      <ImageBackground
+        style={styles.background}
+        source={require("../assets/background.jpg")}
+        resizeMode="cover">
+        <View style={styles.content}>
+          <Text style={styles.title}>Groups</Text>
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search Chats"
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+            />
+            <TouchableOpacity
+              style={styles.addGroupButton}
+              onPress={() => setModalVisible(true)}>
+              <View style={styles.addGroupIconContainer}>
+                <Text style={styles.addGroupIcon}>+</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+          {/* Render groups manually using map */}
+          {filtredGroups.map((item) => {
+            // Find the full name of the group creator
+            const groupCreator = allUsersWithCurrent.find(
+              (user) => user.id === item.groupCreator
+            );
+            const creatorName = groupCreator
+              ? groupCreator.fullname
+              : "Unknown";
+
+            return (
+              <View key={item.id} style={styles.groupItem}>
+                <Text style={styles.groupItemTitle}>{item.name}</Text>
+                <Text style={styles.groupCreator}>Admin: {creatorName}</Text>
+
+                <View style={styles.groupActions}>
+                  <TouchableOpacity
+                    onPress={() => openGroupChat(item)}
+                    style={styles.chatButton}>
+                    <Text style={styles.chatButtonText}>Start Chat</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })}
+          <Modal visible={modalVisible} animationType="slide">
+            <View style={styles.modalContainer}>
+              <View
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 25,
+                }}>
+                <Text style={styles.modalHeader}>Create a New Group</Text>
+                <TouchableOpacity
+                  style={styles.closeModalButton}
+                  onPress={() => setModalVisible(false)}>
+                  <Ionicons name="close" size={28} color="#e74c3c" />
+                </TouchableOpacity>
+              </View>
+              <TextInput
+                style={styles.input}
+                placeholder="Group Name"
+                value={groupName}
+                onChangeText={setGroupName}
+              />
+
+              <Text style={styles.subHeader}>Select Members</Text>
+
+              <FlatList
+                data={allUsers}
+                keyExtractor={(item) => item.id}
+                renderItem={renderUserItem}
+                style={styles.userList} // Apply style to the FlatList
+              />
+
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={createGroup}>
+                  <Text style={styles.buttonText}>Create Group</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
         </View>
-      </Modal>
-    </View>
+      </ImageBackground>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, marginTop: 80 },
-  header: { fontSize: 20, marginBottom: 20 },
+  container: {
+    flexGrow: 1,
+    alignItems: "center",
+  },
+  background: {
+    width: "100%",
+    height: "100%",
+  },
+  content: {
+    flex: 1,
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "#25D366",
+    marginVertical: 20,
+  },
   groupItem: {
-    padding: 15,
-    marginBottom: 10,
-    backgroundColor: "#f4f4f4",
+    width: "100%",
+    marginBottom: 15,
     borderRadius: 5,
+  },
+  searchContainer: {
+    width: "100%",
+    marginBottom: 20,
+    display: "flex",
+    flexDirection: "row",
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginVertical: 20,
+  },
+  searchInput: {
+    height: 50,
+    flex: 1,
+    borderColor: "#ccc",
+    borderWidth: 1,
+    borderRadius: 25,
+    paddingHorizontal: 15,
+    fontSize: 16,
+    backgroundColor: "#fff",
+    marginRight: 5,
+  },
+  addGroupButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#25D366",
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 25,
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+  },
+  addGroupIconContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 50,
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addGroupIcon: {
+    color: "#25D366",
+    fontSize: 20,
+    fontWeight: "bold",
   },
   groupName: { fontSize: 16, marginBottom: 10 },
   groupActions: { flexDirection: "row", justifyContent: "space-between" },
   chatButton: { backgroundColor: "#3498db", padding: 10, borderRadius: 5 },
   chatButtonText: { color: "#fff" },
-  deleteButton: { backgroundColor: "#e74c3c", padding: 10, borderRadius: 5 },
-  deleteButtonText: { color: "#fff" },
-  editButton: { backgroundColor: "#f39c12", padding: 10, borderRadius: 5 },
-  editButtonText: { color: "#fff" },
+
+  // Modal Styles
   modalContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    padding: 20,
+  },
+  modalHeader: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#fff",
+    flexGrow: 1,
+  },
+  subHeader: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginVertical: 10,
+    color: "#fff",
   },
   input: {
     height: 45,
@@ -270,9 +348,53 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     paddingHorizontal: 10,
     marginBottom: 15,
+    width: "100%",
+    backgroundColor: "#fff",
   },
-  userItem: { padding: 10, borderBottomWidth: 1, borderBottomColor: "#ccc" },
-  selectedUser: { backgroundColor: "#d1f7c4" },
+  // User List Styling
+  userList: {
+    width: "100%",
+    paddingVertical: 10,
+  },
+
+  userItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ccc",
+    marginBottom: 15,
+    backgroundColor: "#fff",
+    borderRadius: 5,
+  },
+
+  selectedUser: {
+    backgroundColor: "#d1f7c4",
+  },
+
+  // Button Container and Action Button Styles
+  buttonContainer: {
+    marginTop: 20,
+    width: "100%",
+  },
+  actionButton: {
+    backgroundColor: "#27b141",
+    padding: 15,
+    marginTop: 16,
+    borderRadius: 5,
+    alignItems: "center",
+  },
+  cancelButton: {
+    backgroundColor: "#e74c3c",
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  groupItemTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    flex: 1,
+  },
 });
 
 export default GroupsContent;

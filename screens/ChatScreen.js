@@ -78,25 +78,6 @@ const uploadImageToSupabase = async (uri) => {
   }
 };
 
-const renderFileIcon = (file) => {
-  const fileName = file.name || "File";
-  const fileExt = fileName.split(".").pop().toLowerCase();
-
-  let iconName = "insert-drive-file"; // Default file icon
-  if (fileExt === "pdf") iconName = "picture-as-pdf";
-  else if (["doc", "docx"].includes(fileExt)) iconName = "description";
-  else if (["xls", "xlsx"].includes(fileExt)) iconName = "table-chart";
-
-  return (
-    <TouchableOpacity
-      onPress={() => Linking.openURL(file.uri)}
-      style={styles.fileContainer}>
-      <MaterialIcons name={iconName} size={50} color="#3498db" />
-      <Text style={styles.fileName}>{fileName}</Text>
-    </TouchableOpacity>
-  );
-};
-
 const ChatScreen = ({ other }) => {
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState("");

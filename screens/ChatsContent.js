@@ -285,11 +285,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginVertical: 20,
   },
-  addChatButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
+
   searchInput: {
     height: 50,
     flex: 1,
